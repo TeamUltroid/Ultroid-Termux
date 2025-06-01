@@ -38,7 +38,7 @@ import java.util.List;
  *      - Renamed `TERMUX_DEFAULT_PREFERENCES_FILE_BASENAME` to
  *          `TERMUX_DEFAULT_PREFERENCES_FILE_BASENAME_WITHOUT_EXTENSION`. This should be used for
  *           accessing shared preferences between Termux app and its plugins if ever needed by first
- *           getting shared package context with {@link Context.createPackageContext(String,int}).
+ *           getting shared package context with {@link Context.createPackageContext(String,int)}.
  *
  * - 0.4.0 (2021-03-16)
  *      - Added `BROADCAST_TERMUX_OPENED`,
@@ -1052,7 +1052,9 @@ public final class TermuxConstants {
              * {@code false} for the TERMUX_SERVICE.ACTION_SERVICE_EXECUTE intent */
             public static final String EXTRA_RESULT_FILES_SUFFIX = TERMUX_PACKAGE_NAME + ".execute.result_files_suffix"; // Default: "com.termux.execute.result_files_suffix"
 
-
+            // Custom extra to indicate that the session should be purely headless
+            // and not interact with TermuxActivity's UI client.
+            public static final String EXTRA_IS_HEADLESS_EXECUTION = TERMUX_PACKAGE_NAME + ".execute.headless"; // Default: "com.termux.execute.headless"
 
             /**
              * The value for {@link #EXTRA_SESSION_ACTION} extra that will set the new session as

@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@android:color/white">
+
+    <!-- App Bar -->
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbar_configure"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/ultroid_primary"
+        android:elevation="4dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Configure Environment"
+            android:textSize="20sp"
+            android:textColor="@android:color/white"
+            android:textStyle="bold" />
+    </androidx.appcompat.widget.Toolbar>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:layout_marginBottom="20dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Environment Configuration"
+                    android:textSize="18sp"
+                    android:textColor="@color/ultroid_text_primary"
+                    android:layout_marginBottom="10dp"/>
+
+                <EditText
+                    android:id="@+id/config_text_area"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="200dp"
+                    android:gravity="top|start"
+                    android:inputType="textMultiLine"
+                    android:background="@color/ultroid_status_bg"
+                    android:padding="15dp"
+                    android:textSize="14sp"
+                    android:hint="Enter your configuration here..."
+                    android:fontFamily="monospace"
+                    android:textColor="@color/ultroid_text_primary"/>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Required Dependencies"
+                    android:textSize="18sp"
+                    android:textColor="@color/ultroid_text_primary"
+                    android:layout_marginTop="20dp"
+                    android:layout_marginBottom="10dp"/>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:background="@color/ultroid_status_bg"
+                    android:padding="15dp">
+
+                    <CheckBox
+                        android:id="@+id/check_python"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Python 3.8+"
+                        android:textColor="@color/ultroid_text_primary"/>
+
+                    <CheckBox
+                        android:id="@+id/check_redis"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Redis Database"
+                        android:textColor="@color/ultroid_text_primary"/>
+
+                    <CheckBox
+                        android:id="@+id/check_ffmpeg"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="FFmpeg"
+                        android:textColor="@color/ultroid_text_primary"/>
+
+                    <CheckBox
+                        android:id="@+id/check_nodejs"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="NodeJS"
+                        android:textColor="@color/ultroid_text_primary"/>
+
+                    <CheckBox
+                        android:id="@+id/check_git"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Git"
+                        android:textColor="@color/ultroid_text_primary"/>
+                </LinearLayout>
+            </LinearLayout>
+        </ScrollView>
+
+        <Button
+            android:id="@+id/btn_save_config"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Save Configuration"
+            android:backgroundTint="@color/ultroid_primary"
+            android:textColor="@color/white"
+            android:padding="15dp"/>
+    </LinearLayout>
+</LinearLayout> 

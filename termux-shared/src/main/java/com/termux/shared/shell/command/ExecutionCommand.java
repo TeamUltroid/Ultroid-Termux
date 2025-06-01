@@ -235,6 +235,13 @@ public class ExecutionCommand {
     /** Defines if processing results already called for this {@link ExecutionCommand}. */
     public boolean processingResultsAlreadyCalled;
 
+    /** If the {@link ExecutionCommand} is a plugin command, then this defines whether the plugin
+     * expects results back via a pending intent. */
+    public boolean mIsPluginExecutionCommandWithPendingResult;
+
+    /** Whether the execution is intended to be completely headless and not interact with TermuxActivity UI. */
+    public boolean isHeadlessExecution = false;
+
     private static final String LOG_TAG = "ExecutionCommand";
 
 
@@ -686,6 +693,18 @@ public class ExecutionCommand {
         }
 
         return argumentsString.toString();
+    }
+
+    public void setIsPluginExecutionCommandWithPendingResult(boolean isPluginExecutionCommandWithPendingResult) {
+        mIsPluginExecutionCommandWithPendingResult = isPluginExecutionCommandWithPendingResult;
+    }
+
+    public boolean isHeadlessExecution() {
+        return isHeadlessExecution;
+    }
+
+    public void setHeadlessExecution(boolean headlessExecution) {
+        isHeadlessExecution = headlessExecution;
     }
 
 }

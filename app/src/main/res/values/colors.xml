@@ -1,3 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <color name="colorPrimary">#000000</color>
+    <color name="colorPrimaryDark">#000000</color>
+    <color name="colorAccent">#212121</color>
+    <color name="black">#000000</color>
+    <color name="white">#FFFFFF</color>
+    <color name="text_secondary">#757575</color>
+    
+    <!-- Ultroid Deployment Colors -->
+    <color name="ultroid_primary">#2196F3</color>
+    <color name="ultroid_primary_dark">#1976D2</color>
+    <color name="ultroid_accent">#4CAF50</color>
+    <color name="ultroid_background">#FFFFFF</color>
+    <color name="ultroid_text_primary">#000000</color>
+    <color name="ultroid_text_secondary">#757575</color>
+    <color name="ultroid_status_bg">#F5F5F5</color>
 </resources>

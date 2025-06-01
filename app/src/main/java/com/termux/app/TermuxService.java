@@ -407,6 +407,8 @@ public final class TermuxService extends Service implements AppShell.AppShellCli
             executionCommand.resultConfig.resultFilesSuffix = IntentUtils.getStringExtraIfSet(intent, TERMUX_SERVICE.EXTRA_RESULT_FILES_SUFFIX, null);
         }
 
+        executionCommand.setHeadlessExecution(intent.getBooleanExtra(TERMUX_SERVICE.EXTRA_IS_HEADLESS_EXECUTION, false));
+
         if (executionCommand.shellCreateMode == null)
             executionCommand.shellCreateMode = ShellCreateMode.ALWAYS.getMode();
 
@@ -423,10 +425,6 @@ public final class TermuxService extends Service implements AppShell.AppShellCli
             TermuxPluginUtils.processPluginExecutionCommandError(this, LOG_TAG, executionCommand, false);
         }
     }
-
-
-
-
 
     /** Execute a shell command in background TermuxTask. */
     private void executeTermuxTaskCommand(ExecutionCommand executionCommand) {
@@ -588,14 +586,12 @@ public final class TermuxService extends Service implements AppShell.AppShellCli
         if (Logger.getLogLevel() >= Logger.LOG_LEVEL_VERBOSE)
             Logger.logVerboseExtended(LOG_TAG, executionCommand.toString());
 
-        // If the execution command was started for a plugin, only then will the stdout be set
-        // Otherwise if command was manually started by the user like by adding a new terminal session,
-        // then no need to set stdout
-        TermuxSession newTermuxSession = TermuxSession.execute(this, executionCommand, getTermuxTerminalSessionClient(),
+        TermuxTerminalSessionClientBase sessionClientToUse = executionCommand.isHeadlessExecution() ? mTermuxTerminalSessionServiceClient : getTermuxTerminalSessionClient();
+
+        TermuxSession newTermuxSession = TermuxSession.execute(this, executionCommand, sessionClientToUse,
             this, new TermuxShellEnvironment(), null, executionCommand.isPluginExecutionCommand);
         if (newTermuxSession == null) {
             Logger.logError(LOG_TAG, "Failed to execute new TermuxSession command for:\n" + executionCommand.getCommandIdAndLabelLogString());
-            // If the execution command was started for a plugin, then process the error
             if (executionCommand.isPluginExecutionCommand)
                 TermuxPluginUtils.processPluginExecutionCommandError(this, LOG_TAG, executionCommand, false);
             else {
@@ -607,21 +603,16 @@ public final class TermuxService extends Service implements AppShell.AppShellCli
 
         mShellManager.mTermuxSessions.add(newTermuxSession);
 
-        // Remove the execution command from the pending plugin execution commands list since it has
-        // now been processed
         if (executionCommand.isPluginExecutionCommand)
             mShellManager.mPendingPluginExecutionCommands.remove(executionCommand);
 
-        // Notify {@link TermuxSessionsListViewController} that sessions list has been updated if
-        // activity in is foreground
-        if (mTermuxTerminalSessionActivityClient != null)
-            mTermuxTerminalSessionActivityClient.termuxSessionListNotifyUpdated();
+        if (!executionCommand.isHeadlessExecution()) {
+            if (mTermuxTerminalSessionActivityClient != null)
+                mTermuxTerminalSessionActivityClient.termuxSessionListNotifyUpdated();
+            TermuxActivity.updateTermuxActivityStyling(this, false);
+        }
 
         updateNotification();
-
-        // No need to recreate the activity since it likely just started and theme should already have applied
-        TermuxActivity.updateTermuxActivityStyling(this, false);
-
         return newTermuxSession;
     }
 
@@ -684,25 +675,31 @@ public final class TermuxService extends Service implements AppShell.AppShellCli
     private void handleSessionAction(int sessionAction, TerminalSession newTerminalSession) {
         Logger.logDebug(LOG_TAG, "Processing sessionAction \"" + sessionAction + "\" for session \"" + newTerminalSession.mSessionName + "\"");
 
+        boolean currentCmdIsHeadless = false;
+        TermuxSession ts = getTermuxSessionForTerminalSession(newTerminalSession);
+        if (ts != null) {
+            currentCmdIsHeadless = ts.getExecutionCommand().isHeadlessExecution();
+        }
+
         switch (sessionAction) {
             case TERMUX_SERVICE.VALUE_EXTRA_SESSION_ACTION_SWITCH_TO_NEW_SESSION_AND_OPEN_ACTIVITY:
                 setCurrentStoredTerminalSession(newTerminalSession);
-                if (mTermuxTerminalSessionActivityClient != null)
+                if (mTermuxTerminalSessionActivityClient != null && !currentCmdIsHeadless)
                     mTermuxTerminalSessionActivityClient.setCurrentSession(newTerminalSession);
                 startTermuxActivity();
                 break;
             case TERMUX_SERVICE.VALUE_EXTRA_SESSION_ACTION_KEEP_CURRENT_SESSION_AND_OPEN_ACTIVITY:
                 if (getTermuxSessionsSize() == 1)
                     setCurrentStoredTerminalSession(newTerminalSession);
-                startTermuxActivity();
+                startTermuxActivity(); 
                 break;
             case TERMUX_SERVICE.VALUE_EXTRA_SESSION_ACTION_SWITCH_TO_NEW_SESSION_AND_DONT_OPEN_ACTIVITY:
                 setCurrentStoredTerminalSession(newTerminalSession);
-                if (mTermuxTerminalSessionActivityClient != null)
+                if (mTermuxTerminalSessionActivityClient != null && !currentCmdIsHeadless)
                     mTermuxTerminalSessionActivityClient.setCurrentSession(newTerminalSession);
                 break;
             case TERMUX_SERVICE.VALUE_EXTRA_SESSION_ACTION_KEEP_CURRENT_SESSION_AND_DONT_OPEN_ACTIVITY:
-                if (getTermuxSessionsSize() == 1)
+                if (getTermuxSessionsSize() == 1) 
                     setCurrentStoredTerminalSession(newTerminalSession);
                 break;
             default:

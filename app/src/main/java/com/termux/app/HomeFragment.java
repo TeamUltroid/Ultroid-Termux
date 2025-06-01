@@ -1,0 +1,515 @@
+package com.termux.app;
+
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
+import android.content.Context;
+import android.os.Build;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuItem;
+import android.view.View;
+import android.view.ViewGroup;
+import android.view.animation.AccelerateDecelerateInterpolator;
+import android.widget.Button;
+import android.widget.ImageButton;
+import android.widget.TextView;
+import android.widget.Toast;
+import android.widget.LinearLayout;
+import android.widget.FrameLayout;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.appcompat.widget.Toolbar;
+import androidx.core.widget.NestedScrollView;
+import androidx.fragment.app.Fragment;
+
+import com.google.android.material.bottomsheet.BottomSheetBehavior;
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.termux.R;
+import com.termux.shared.shell.command.ExecutionCommand;
+import com.termux.shared.shell.command.ExecutionCommand.ExecutionState;
+import com.termux.shared.shell.command.runner.app.AppShell;
+import com.termux.shared.errors.Errno;
+import com.termux.shared.termux.TermuxConstants;
+import com.termux.shared.logger.Logger;
+
+import java.io.File;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.LinkedList;
+import java.util.Locale;
+import java.util.Queue;
+import android.content.BroadcastReceiver;
+import android.content.IntentFilter;
+import android.app.PendingIntent;
+import android.content.Intent;
+import android.net.Uri;
+
+public class HomeFragment extends Fragment implements View.OnClickListener {
+
+    private TextView mStatusText;
+    private MaterialButton mBtnStartSetup;
+    private Toolbar mToolbar;
+    private LinearLayout mSetupContainer;
+    private LinearLayout mDeploymentContainer;
+    private UltroidDeploymentActivity mActivity;
+    private Handler mHandler = new Handler(Looper.getMainLooper());
+
+    // Logs related views
+    private FloatingActionButton mFabShowLogs;
+    private ImageButton mBtnClearLogs;
+    private NestedScrollView mLogsBottomSheet;
+    private TextView mLogsText;
+    private BottomSheetBehavior<NestedScrollView> mBottomSheetBehavior;
+    private StringBuilder mLogsBuilder = new StringBuilder();
+
+    private static final String LOG_TAG = "HomeFragment";
+    private static final String ULTROID_DIR = "Ultroid";
+    private static final int CROSSFADE_DURATION = 300;
+
+    private Queue<CommandStep> commandQueue = new LinkedList<>();
+    private boolean isExecutingQueue = false;
+
+    private static class CommandStep {
+        String statusMessage;
+        String command;
+        String successLogMessage;
+
+        CommandStep(String statusMessage, String command, String successLogMessage) {
+            this.statusMessage = statusMessage;
+            this.command = command;
+            this.successLogMessage = successLogMessage;
+        }
+    }
+
+    @Override
+    public void onAttach(@NonNull Context context) {
+        super.onAttach(context);
+        if (context instanceof UltroidDeploymentActivity) {
+            mActivity = (UltroidDeploymentActivity) context;
+        } else {
+            throw new IllegalStateException("HomeFragment must be attached to UltroidDeploymentActivity");
+        }
+    }
+
+    @Nullable
+    @Override
+    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+        View view = inflater.inflate(R.layout.fragment_home, container, false);
+
+        mToolbar = view.findViewById(R.id.toolbar_home);
+        mStatusText = view.findViewById(R.id.status_text);
+        mSetupContainer = view.findViewById(R.id.setup_container);
+        mDeploymentContainer = view.findViewById(R.id.deployment_container);
+        mBtnStartSetup = view.findViewById(R.id.btn_start_setup);
+
+        mFabShowLogs = view.findViewById(R.id.fab_show_logs);
+        mBtnClearLogs = view.findViewById(R.id.btn_clear_logs);
+        mLogsBottomSheet = view.findViewById(R.id.logs_bottom_sheet);
+        mLogsText = view.findViewById(R.id.logs_text);
+
+        mBtnStartSetup.setOnClickListener(this);
+        mFabShowLogs.setOnClickListener(this);
+        mBtnClearLogs.setOnClickListener(this);
+
+        mFabShowLogs.setVisibility(View.GONE); // Initially hidden
+
+        setupBottomSheet();
+        checkUltroidInstallation();
+        
+        return view;
+    }
+
+    private void setupBottomSheet() {
+        mBottomSheetBehavior = BottomSheetBehavior.from(mLogsBottomSheet);
+        mBottomSheetBehavior.setState(BottomSheetBehavior.STATE_HIDDEN);
+        
+        mBottomSheetBehavior.addBottomSheetCallback(new BottomSheetBehavior.BottomSheetCallback() {
+            @Override
+            public void onStateChanged(@NonNull View bottomSheet, int newState) {
+                if (newState == BottomSheetBehavior.STATE_HIDDEN) {
+                    dimBackground(false);
+                }
+            }
+
+            @Override
+            public void onSlide(@NonNull View bottomSheet, float slideOffset) {
+                // Dimming effect can be adjusted or removed if not desired for FAB setup
+                // dimBackground(true, slideOffset);
+            }
+        });
+    }
+
+    private void dimBackground(boolean dim) {
+         // Get the root view of the fragment
+        View rootView = getView();
+        if (rootView == null) return;
+
+        // Find the FrameLayout that contains the setup and deployment containers
+        FrameLayout mainContentContainer = rootView.findViewById(R.id.main_content_frame); 
+        
+        if (mainContentContainer != null) {
+            mainContentContainer.setAlpha(dim ? 0.5f : 1f);
+        } else {
+            // Fallback or error logging if main_content_frame is not found
+            Logger.logError(LOG_TAG, "main_content_frame not found for dimBackground");
+            // As a last resort, try to dim the deployment or setup container directly if visible
+            if (mDeploymentContainer != null && mDeploymentContainer.getVisibility() == View.VISIBLE) {
+                mDeploymentContainer.setAlpha(dim ? 0.5f : 1f);
+            } else if (mSetupContainer != null && mSetupContainer.getVisibility() == View.VISIBLE) {
+                mSetupContainer.setAlpha(dim ? 0.5f : 1f);
+            }
+        }
+    }
+
+
+    private void toggleLogs() {
+        if (mBottomSheetBehavior.getState() == BottomSheetBehavior.STATE_HIDDEN) {
+            mBottomSheetBehavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+            // dimBackground(true); // Optional: dim background when logs are shown
+        } else {
+            mBottomSheetBehavior.setState(BottomSheetBehavior.STATE_HIDDEN);
+            // dimBackground(false); // Optional: undim background when logs are hidden
+        }
+    }
+
+    private void clearLogs() {
+        mLogsBuilder.setLength(0);
+        mLogsText.setText("");
+        appendToLogs("Log cleared.");
+    }
+
+    private void appendToLogs(String text) {
+        if (text == null || mLogsText == null || mLogsBuilder == null || mLogsBottomSheet == null) return;
+        
+        String timestamp = new SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(new Date());
+        mLogsBuilder.append(timestamp).append(": ").append(text).append("\\n");
+        
+        // Ensure UI updates are on the main thread
+        mHandler.post(() -> {
+            mLogsText.setText(mLogsBuilder.toString());
+            mLogsBottomSheet.post(() -> mLogsBottomSheet.fullScroll(View.FOCUS_DOWN));
+        });
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        ensureTermuxSession();
+        
+        // Re-check state in onResume as well, in case view is recreated
+        checkUltroidInstallation(); 
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        // if (commandResultReceiver != null && getContext() != null) {
+        //     getContext().unregisterReceiver(commandResultReceiver);
+        //     commandResultReceiver = null;
+        // }
+    }
+
+    public void ensureTermuxSession() {
+        if (mActivity != null && mActivity.isTermuxServiceBound()) {
+            TermuxService termuxService = mActivity.getTermuxService();
+            if (termuxService != null && termuxService.isTermuxSessionsEmpty()) {
+                Logger.logDebug(LOG_TAG, "No active session, creating a new one for Ultroid.");
+                appendToLogs("Creating new Termux session for Ultroid.");
+                termuxService.createTermuxSession(null, null, null, 
+                    TermuxConstants.TERMUX_HOME_DIR_PATH, false, "UltroidDeploymentSession");
+            }
+        } else {
+             mHandler.postDelayed(this::ensureTermuxSession, 1000); 
+             Logger.logDebug(LOG_TAG, "TermuxService not bound yet, retrying session creation for Ultroid.");
+             appendToLogs("Waiting for Termux service to connect for Ultroid...");
+        }
+    }
+
+    private void checkUltroidInstallation() {
+        if (getContext() == null) return;
+        File ultroidDir = new File(TermuxConstants.TERMUX_HOME_DIR_PATH, ULTROID_DIR);
+        if (ultroidDir.exists() && ultroidDir.isDirectory()) {
+            showDeploymentState();
+            updateStatus("Ultroid ready. Start or re-configure deployment.");
+            appendToLogs("Ultroid directory found: " + ultroidDir.getAbsolutePath());
+            mBtnStartSetup.setEnabled(true);
+        } else {
+            showSetupState();
+            updateStatus("Ultroid not found. Please start the initial setup.");
+            appendToLogs("Ultroid directory NOT found at " + ultroidDir.getAbsolutePath());
+        }
+    }
+
+    private void showSetupState() {
+        if (mToolbar != null) {
+            mToolbar.getMenu().clear();
+            mToolbar.setOnMenuItemClickListener(null);
+        }
+        mSetupContainer.setAlpha(0f);
+        mSetupContainer.setVisibility(View.VISIBLE);
+        mDeploymentContainer.setVisibility(View.GONE);
+        mFabShowLogs.setVisibility(View.GONE);
+
+        mSetupContainer.animate()
+            .alpha(1f)
+            .setDuration(CROSSFADE_DURATION)
+            .setInterpolator(new AccelerateDecelerateInterpolator())
+            .start();
+    }
+
+    private void showDeploymentState() {
+        if (mToolbar != null) {
+            mToolbar.getMenu().clear(); 
+            mToolbar.inflateMenu(R.menu.menu_home_deployment);
+            mToolbar.setOnMenuItemClickListener(item -> {
+                if (item.getItemId() == R.id.action_open_termux_activity) {
+                    if (getContext() != null) {
+                        Intent intent = new Intent(getContext(), TermuxActivity.class);
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                        try {
+                            getContext().startActivity(intent);
+                        } catch (Exception e) {
+                            appendToLogs("Error opening Termux: " + e.getMessage());
+                            Logger.logStackTraceWithMessage(LOG_TAG, "Error starting TermuxActivity", e);
+                        }
+                    }
+                    return true;
+                }
+                return false;
+            });
+        }
+        mDeploymentContainer.setAlpha(0f);
+        mDeploymentContainer.setVisibility(View.VISIBLE);
+        mSetupContainer.setVisibility(View.GONE);
+        mFabShowLogs.setVisibility(View.VISIBLE);
+        mFabShowLogs.setAlpha(0f);
+
+        mDeploymentContainer.animate()
+            .alpha(1f)
+            .setDuration(CROSSFADE_DURATION)
+            .setInterpolator(new AccelerateDecelerateInterpolator())
+            .start();
+        
+        mFabShowLogs.animate()
+            .alpha(1f)
+            .setDuration(CROSSFADE_DURATION)
+            .setInterpolator(new AccelerateDecelerateInterpolator())
+            .start();
+    }
+
+    @Override
+    public void onClick(View v) {
+        int id = v.getId();
+        
+        if (id == R.id.fab_show_logs) {
+            toggleLogs();
+        } else if (id == R.id.btn_clear_logs) {
+            clearLogs();
+        } else if (id == R.id.btn_start_setup) {
+            startAutomatedDeployment();
+        }
+    }
+
+    private void startAutomatedDeployment() {
+        if (isExecutingQueue) {
+            appendToLogs("Deployment already in progress.");
+            if (getContext() != null) Toast.makeText(getContext(), "Deployment already in progress.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        if (mActivity == null || !mActivity.isTermuxServiceBound()) {
+            appendToLogs("Error: Termux service not available for deployment. Please try again.");
+            if (getContext() != null) Toast.makeText(getContext(), "Termux service not available for deployment.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        showDeploymentState(); 
+        mBtnStartSetup.setEnabled(false); 
+        appendToLogs("Starting automated Ultroid deployment sequence...");
+        updateStatus("Deployment starting... See logs for details.");
+
+        commandQueue.clear();
+
+        commandQueue.add(new CommandStep("Creating Ultroid directory...", "mkdir -p ~/" + ULTROID_DIR, "Ultroid directory verified/created."));
+        commandQueue.add(new CommandStep("Updating packages and installing dependencies...", "pkg update -y && pkg install -y git redis python3 coreutils", "System packages updated and dependencies installed."));
+        commandQueue.add(new CommandStep("Cloning/Pulling Ultroid repository...", "cd ~/" + ULTROID_DIR + " && (git clone https://github.com/TeamUltroid/Ultroid.git . || (git reset --hard && git pull))", "Ultroid repository cloned/updated."));
+        commandQueue.add(new CommandStep("Installing Python requirements for Ultroid...", "cd ~/" + ULTROID_DIR + " && pip install -r requirements.txt", "Python requirements installed."));
+        commandQueue.add(new CommandStep("Checking Ultroid installation status (example: version check)...", "cd ~/" + ULTROID_DIR + " && python3 -m ultroid --version", "Ultroid installation checked."));
+        commandQueue.add(new CommandStep("Deployment Finalizing", "echo \"Ultroid automated deployment steps finished. Manual configuration might be needed for API ID, HASH, and BOT_TOKEN.\"", "Deployment sequence finished. Please check logs."));
+        
+        isExecutingQueue = true;
+        executeNextCommand();
+    }
+
+    private void executeNextCommand() {
+        if (commandQueue.isEmpty()) {
+            isExecutingQueue = false;
+            if (mBtnStartSetup != null) mBtnStartSetup.setEnabled(true); 
+            updateStatus("All deployment steps processed!");
+            appendToLogs("--- Automated deployment sequence complete. ---");
+            if (getContext() != null) Toast.makeText(getContext(), "Deployment sequence finished!", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        CommandStep currentStep = commandQueue.poll();
+        if (currentStep == null) { 
+            executeNextCommand(); // Should not happen with isEmpty check, but good practice
+            return;
+        }
+
+        updateStatus(currentStep.statusMessage);
+        appendToLogs("Next step: " + currentStep.statusMessage);
+        
+        // Execute command immediately
+        executeCommand(currentStep);
+    }
+
+    private void executeCommand(CommandStep currentStep) {
+        if (mActivity == null || getContext() == null) {
+            appendToLogs("Error: Activity or Context is null for command: " + currentStep.command);
+            isExecutingQueue = false;
+            if (mBtnStartSetup != null) mBtnStartSetup.setEnabled(true);
+            // Try to proceed to next command or stop queue
+             mHandler.postDelayed(this::executeNextCommand, 1000);
+            return;
+        }
+
+        TermuxService termuxService = mActivity.getTermuxService();
+        if (termuxService == null) {
+            appendToLogs("Error: TermuxService is null for command: " + currentStep.command);
+            isExecutingQueue = false;
+            if (mBtnStartSetup != null) mBtnStartSetup.setEnabled(true);
+            // Try to proceed to next command or stop queue
+            mHandler.postDelayed(this::executeNextCommand, 1000);
+            return;
+        }
+
+        appendToLogs("Executing: " + currentStep.command);
+        Logger.logDebug(LOG_TAG, "Executing command: `" + currentStep.command + "` (Label: " + currentStep.statusMessage + ")");
+        
+        final AppShell appShell;
+        try {
+            // Use a subshell to handle complex commands and ensure proper environment
+            String wrappedCommand = "sh -c '" + currentStep.command.replace("'", "'\''") + "'";
+            appShell = termuxService.createTermuxTask(
+                TermuxConstants.TERMUX_PREFIX_DIR_PATH + "/bin/sh", // login shell to source profile if needed
+                new String[]{"-c", currentStep.command}, // Pass command to sh -c
+                null, // stdin
+                TermuxConstants.TERMUX_HOME_DIR_PATH // working directory
+            );
+            
+            if (appShell == null) {
+                appendToLogs("Error: Failed to create AppShell task for: " + currentStep.statusMessage);
+                mHandler.postDelayed(this::executeNextCommand, 1000);
+                return;
+            }
+        } catch (Exception e) {
+            appendToLogs("Exception creating AppShell task for '" + currentStep.statusMessage + "': " + e.getMessage());
+            Logger.logStackTraceWithMessage(LOG_TAG, "AppShell creation exception for: " + currentStep.command, e);
+            mHandler.postDelayed(this::executeNextCommand, 1000);
+            return;
+        }
+            
+        final ExecutionCommand cmd = appShell.getExecutionCommand();
+        cmd.commandLabel = currentStep.statusMessage; 
+
+        Logger.logDebug(LOG_TAG, "AppShell task created for '" + cmd.commandLabel + "'. PID: " + cmd.mPid + ". Monitoring state...");
+
+        new Thread(() -> {
+            int timeoutSeconds = 300; // 5 minutes for most steps
+            if (currentStep.command.contains("pip install") || currentStep.command.contains("pkg update")) {
+                timeoutSeconds = 600; // 10 minutes for package installations
+            }
+
+            int elapsedTime = 0; // in 100ms intervals
+            boolean isConcluded = false;
+
+            while (!isConcluded && elapsedTime < timeoutSeconds * 10) { 
+                try {
+                    Thread.sleep(100);
+                    elapsedTime++;
+
+                    synchronized (cmd) { 
+                        isConcluded = cmd.hasExecuted() || cmd.isStateFailed();
+                    }
+
+                    if (elapsedTime % 50 == 0) { // Log progress every 5 seconds
+                        final int seconds = elapsedTime / 10;
+                        if (!isConcluded) { 
+                            final String progressMsg = "'" + cmd.commandLabel + "' running... (" + seconds + "s / " + timeoutSeconds + "s)";
+                            mHandler.post(() -> appendToLogs(progressMsg));
+                        }
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    com.termux.shared.logger.Logger.logWarn(LOG_TAG, "Monitoring for '" + cmd.commandLabel + "' was interrupted.");
+                    isConcluded = true; 
+                }
+            }
+
+            final boolean timedOut = !isConcluded;
+
+            mHandler.post(() -> {
+                synchronized (cmd) { 
+                    if (timedOut) {
+                        appendToLogs("Timeout: Command '" + cmd.commandLabel + "' exceeded " + "s.");
+                        if (cmd.isExecuting()) {
+                            if (getContext() != null) {
+                                com.termux.shared.logger.Logger.logWarn(LOG_TAG, "Attempting to kill timed-out command: " + cmd.commandLabel);
+                                appShell.killIfExecuting(getContext(), true); 
+                            } else {
+                                com.termux.shared.logger.Logger.logError(LOG_TAG, "Context null, cannot kill timed-out command: " + cmd.commandLabel);
+                            }
+                            if (cmd.resultData.exitCode == null) cmd.resultData.exitCode = Errno.ERRNO_FAILED.getCode(); 
+                            if (!cmd.isStateFailed() && cmd.isExecuting()) {
+                                cmd.setState(ExecutionState.FAILED);
+                            }
+                        }
+                    }
+
+                    String stdout = (cmd.resultData != null && cmd.resultData.stdout != null) ? cmd.resultData.stdout.toString().trim() : "";
+                    String stderr = (cmd.resultData != null && cmd.resultData.stderr != null) ? cmd.resultData.stderr.toString().trim() : "";
+                    int exitCode = (cmd.resultData != null && cmd.resultData.exitCode != null) ? cmd.resultData.exitCode : -1;
+
+                    Logger.logDebug(LOG_TAG, "Results for '" + cmd.commandLabel + "': State=" + (cmd.isStateFailed() ? ExecutionState.FAILED.getName() : (cmd.hasExecuted() ? ExecutionState.EXECUTED.getName() : ExecutionState.EXECUTING.getName())) + ", ExitCode=" + exitCode + 
+                                             ", StdoutLen=" + stdout.length() + ", StderrLen=" + stderr.length());
+
+                    if (!stdout.isEmpty()) {
+                        appendToLogs("STDOUT [" + cmd.commandLabel + "]:\n" + stdout);
+                    }
+                    if (!stderr.isEmpty()) {
+                        appendToLogs("STDERR [" + cmd.commandLabel + "]:\n" + stderr);
+                    }
+                    appendToLogs("Exit Code [" + cmd.commandLabel + "]: " + exitCode);
+
+                    if (cmd.hasExecuted() && !cmd.isStateFailed() && exitCode == 0) {
+                        appendToLogs(currentStep.successLogMessage != null ? currentStep.successLogMessage 
+                                                                        : "Step '" + cmd.commandLabel + "' completed successfully.");
+                    } else {
+                        appendToLogs("Step '" + cmd.commandLabel + "' finished with issues. State: " + (cmd.isStateFailed() ? ExecutionState.FAILED.getName() : (cmd.hasExecuted() ? ExecutionState.EXECUTED.getName() : ExecutionState.EXECUTING.getName())) + ", Exit Code: " + exitCode);
+                    }
+                } 
+                mHandler.postDelayed(HomeFragment.this::executeNextCommand, 500);
+            });
+        }).start();
+    }
+
+
+    private void updateStatus(String status) {
+        if (mStatusText != null) {
+            mStatusText.setText(status);
+            // Optional: Add animation for status updates
+            // mStatusText.setAlpha(0f);
+            // mStatusText.animate().alpha(1f).setDuration(200).start();
+        }
+        Logger.logDebug(LOG_TAG, "Status Updated: " + status);
+    }
+    
+    // BroadcastReceiver is likely no longer needed
+    // private class CommandResultReceiver extends BroadcastReceiver { ... }
+} 
