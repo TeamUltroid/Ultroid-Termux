@@ -117,6 +117,28 @@
                             android:src="@mipmap/ic_launcher"
                             android:contentDescription="Ultroid Icon"
                             android:layout_gravity="center"
+                            android:layout_marginBottom="8dp"/>
+
+                        <TextView
+                            android:id="@+id/ultroid_title"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Ultroid"
+                            android:textSize="28sp"
+                            android:textColor="@color/ultroid_primary"
+                            android:fontFamily="@font/poppins_bold"
+                            android:layout_gravity="center"
+                            android:layout_marginBottom="4dp"/>
+
+                        <TextView
+                            android:id="@+id/ultroid_subtitle"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Powerful Telegram UserBot"
+                            android:textSize="16sp"
+                            android:textColor="@color/ultroid_text_secondary"
+                            android:fontFamily="@font/poppins_bold"
+                            android:layout_gravity="center"
                             android:layout_marginBottom="16dp"/>
 
                     </LinearLayout>

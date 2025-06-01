@@ -61,6 +61,8 @@ public class HomeFragment extends Fragment implements View.OnClickListener {
     private LinearLayout mDeploymentContainer;
     private UltroidDeploymentActivity mActivity;
     private Handler mHandler = new Handler(Looper.getMainLooper());
+    private TextView mUltroidTitle;
+    private TextView mUltroidSubtitle;
 
     // Logs related views
     private FloatingActionButton mFabShowLogs;
@@ -112,6 +114,8 @@ public class HomeFragment extends Fragment implements View.OnClickListener {
         mSetupContainer = view.findViewById(R.id.setup_container);
         mDeploymentContainer = view.findViewById(R.id.deployment_container);
         mBtnStartSetup = view.findViewById(R.id.btn_start_setup);
+        mUltroidTitle = view.findViewById(R.id.ultroid_title);
+        mUltroidSubtitle = view.findViewById(R.id.ultroid_subtitle);
 
         mFabShowLogs = view.findViewById(R.id.fab_show_logs);
         mBtnClearLogs = view.findViewById(R.id.btn_clear_logs);
@@ -164,9 +168,12 @@ public class HomeFragment extends Fragment implements View.OnClickListener {
         
         // Set Poppins Bold font
         Typeface poppinsBold = ResourcesCompat.getFont(requireContext(), R.font.poppins_bold);
+        Typeface poppinsRegular = ResourcesCompat.getFont(requireContext(), R.font.poppins_bold);
         mStatusText.setTypeface(poppinsBold);
         mBtnStartSetup.setTypeface(poppinsBold);
         mLogsText.setTypeface(poppinsBold);
+        if (mUltroidTitle != null) mUltroidTitle.setTypeface(poppinsBold);
+        if (mUltroidSubtitle != null) mUltroidSubtitle.setTypeface(poppinsRegular);
 
         return view;
     }

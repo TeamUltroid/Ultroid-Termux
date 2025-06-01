@@ -6,6 +6,7 @@ import android.os.Handler;
 import android.os.Looper;
 import androidx.appcompat.app.AppCompatActivity;
 import com.termux.R;
+import com.termux.app.TermuxInstaller;
 
 public class SplashActivity extends AppCompatActivity {
     private static final int SPLASH_DELAY = 3000; // 3 seconds
@@ -16,8 +17,10 @@ public class SplashActivity extends AppCompatActivity {
         setContentView(R.layout.activity_splash);
 
         new Handler(Looper.getMainLooper()).postDelayed(() -> {
-            startActivity(new Intent(SplashActivity.this, UltroidDeploymentActivity.class));
-            finish();
+            TermuxInstaller.setupBootstrapIfNeeded(SplashActivity.this, () -> {
+                startActivity(new Intent(SplashActivity.this, UltroidDeploymentActivity.class));
+                finish();
+            });
         }, SPLASH_DELAY);
     }
 } 
