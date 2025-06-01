@@ -23,106 +23,85 @@
             android:textStyle="bold" />
     </androidx.appcompat.widget.Toolbar>
 
+    <!-- Setup First Message -->
     <LinearLayout
+        android:id="@+id/setup_first_container"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
-        android:padding="20dp">
+        android:gravity="center"
+        android:padding="32dp"
+        android:visibility="gone">
 
-        <ScrollView
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:layout_marginBottom="20dp">
+        <ImageView
+            android:layout_width="120dp"
+            android:layout_height="120dp"
+            android:src="@drawable/ic_configure"
+            android:tint="@color/ultroid_primary"
+            android:layout_marginBottom="24dp"/>
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical">
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Environment Configuration"
-                    android:textSize="18sp"
-                    android:textColor="@color/ultroid_text_primary"
-                    android:layout_marginBottom="10dp"/>
-
-                <EditText
-                    android:id="@+id/config_text_area"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:minHeight="200dp"
-                    android:gravity="top|start"
-                    android:inputType="textMultiLine"
-                    android:background="@color/ultroid_status_bg"
-                    android:padding="15dp"
-                    android:textSize="14sp"
-                    android:hint="Enter your configuration here..."
-                    android:fontFamily="monospace"
-                    android:textColor="@color/ultroid_text_primary"/>
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Required Dependencies"
-                    android:textSize="18sp"
-                    android:textColor="@color/ultroid_text_primary"
-                    android:layout_marginTop="20dp"
-                    android:layout_marginBottom="10dp"/>
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:background="@color/ultroid_status_bg"
-                    android:padding="15dp">
-
-                    <CheckBox
-                        android:id="@+id/check_python"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="Python 3.8+"
-                        android:textColor="@color/ultroid_text_primary"/>
-
-                    <CheckBox
-                        android:id="@+id/check_redis"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="Redis Database"
-                        android:textColor="@color/ultroid_text_primary"/>
-
-                    <CheckBox
-                        android:id="@+id/check_ffmpeg"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="FFmpeg"
-                        android:textColor="@color/ultroid_text_primary"/>
-
-                    <CheckBox
-                        android:id="@+id/check_nodejs"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="NodeJS"
-                        android:textColor="@color/ultroid_text_primary"/>
-
-                    <CheckBox
-                        android:id="@+id/check_git"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="Git"
-                        android:textColor="@color/ultroid_text_primary"/>
-                </LinearLayout>
-            </LinearLayout>
-        </ScrollView>
-
-        <Button
-            android:id="@+id/btn_save_config"
+        <TextView
+            android:id="@+id/setup_first_text"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Save Configuration"
-            android:backgroundTint="@color/ultroid_primary"
-            android:textColor="@color/white"
-            android:padding="15dp"/>
+            android:text="Please setup Ultroid first before configuring environment variables"
+            android:textSize="18sp"
+            android:textColor="@color/ultroid_text_primary"
+            android:gravity="center"/>
     </LinearLayout>
+
+    <!-- Configuration Card -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/config_card"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_margin="16dp"
+        app:cardCornerRadius="8dp"
+        app:cardElevation="4dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:padding="16dp"
+            android:background="@color/ultroid_status_bg"
+            android:elevation="4dp">
+
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Environment Variables"
+                android:textSize="18sp"
+                android:textColor="@color/ultroid_text_primary"
+                android:layout_marginBottom="16dp"/>
+
+            <EditText
+                android:id="@+id/config_text_area"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:gravity="top|start"
+                android:inputType="textMultiLine"
+                android:background="@color/ultroid_status_bg"
+                android:padding="16dp"
+                android:textSize="14sp"
+                android:fontFamily="monospace"
+                android:textColor="@color/ultroid_text_primary"/>
+
+            <Button
+                android:id="@+id/btn_save_config"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Save Configuration"
+                android:backgroundTint="@color/ultroid_primary"
+                android:textColor="@color/white"
+                android:layout_marginTop="16dp"
+                android:padding="12dp"
+                android:visibility="gone"/>
+
+        </LinearLayout>
+
+    </com.google.android.material.card.MaterialCardView>
+
 </LinearLayout> 

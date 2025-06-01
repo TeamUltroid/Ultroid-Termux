@@ -226,9 +226,11 @@ public class UltroidDeploymentActivity extends AppCompatActivity implements Bott
         int id = item.getItemId();
         if (id == R.id.navigation_home) {
             fragment = new HomeFragment();
+        } else if (id == R.id.navigation_directory) {
+            fragment = new DirectoryFragment();
         } else if (id == R.id.navigation_configure) {
             fragment = new ConfigureFragment();
-        } else if (id == R.id.navigation_links) {
+        } else if (id == R.id.navigation_about) {
             fragment = new LinksFragment();
         }
         

@@ -19,6 +19,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.LinearLayout;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -48,6 +49,8 @@ import android.content.IntentFilter;
 import android.app.PendingIntent;
 import android.content.Intent;
 import android.net.Uri;
+import android.graphics.Typeface;
+import androidx.core.content.res.ResourcesCompat;
 
 public class HomeFragment extends Fragment implements View.OnClickListener {
 
@@ -110,7 +113,19 @@ public class HomeFragment extends Fragment implements View.OnClickListener {
         mFabShowLogs = view.findViewById(R.id.fab_show_logs);
         mBtnClearLogs = view.findViewById(R.id.btn_clear_logs);
         mLogsBottomSheet = view.findViewById(R.id.logs_bottom_sheet);
+
         mLogsText = view.findViewById(R.id.logs_text);
+        mLogsText.setTextIsSelectable(true);
+
+        Button mBtnCopyLogs = view.findViewById(R.id.btn_copy_logs);
+        if (mBtnCopyLogs != null) {
+            mBtnCopyLogs.setOnClickListener(v -> {
+                android.content.ClipboardManager clipboard = (android.content.ClipboardManager) requireContext().getSystemService(Context.CLIPBOARD_SERVICE);
+                android.content.ClipData clip = android.content.ClipData.newPlainText("Ultroid Logs", mLogsBuilder.toString().replace("\\n", "\n"));
+                clipboard.setPrimaryClip(clip);
+                Toast.makeText(getContext(), "Logs copied to clipboard", Toast.LENGTH_SHORT).show();
+            });
+        }
 
         mBtnStartSetup.setOnClickListener(this);
         mFabShowLogs.setOnClickListener(this);
@@ -121,6 +136,12 @@ public class HomeFragment extends Fragment implements View.OnClickListener {
         setupBottomSheet();
         checkUltroidInstallation();
         
+        // Set Poppins Bold font
+        Typeface poppinsBold = ResourcesCompat.getFont(requireContext(), R.font.poppins_bold);
+        mStatusText.setTypeface(poppinsBold);
+        mBtnStartSetup.setTypeface(poppinsBold);
+        mLogsText.setTypeface(poppinsBold);
+
         return view;
     }
 
@@ -185,13 +206,12 @@ public class HomeFragment extends Fragment implements View.OnClickListener {
 
     private void appendToLogs(String text) {
         if (text == null || mLogsText == null || mLogsBuilder == null || mLogsBottomSheet == null) return;
-        
         String timestamp = new SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(new Date());
-        mLogsBuilder.append(timestamp).append(": ").append(text).append("\\n");
-        
+        mLogsBuilder.append(timestamp).append(": ").append(text).append("\n");
         // Ensure UI updates are on the main thread
         mHandler.post(() -> {
-            mLogsText.setText(mLogsBuilder.toString());
+            // Replace literal \n with actual newlines for display
+            mLogsText.setText(mLogsBuilder.toString().replace("\\n", "\n"));
             mLogsBottomSheet.post(() -> mLogsBottomSheet.fullScroll(View.FOCUS_DOWN));
         });
     }
@@ -233,15 +253,17 @@ public class HomeFragment extends Fragment implements View.OnClickListener {
     private void checkUltroidInstallation() {
         if (getContext() == null) return;
         File ultroidDir = new File(TermuxConstants.TERMUX_HOME_DIR_PATH, ULTROID_DIR);
+        View actionButtons = getView() != null ? getView().findViewById(R.id.ultroid_action_buttons) : null;
         if (ultroidDir.exists() && ultroidDir.isDirectory()) {
             showDeploymentState();
-            updateStatus("Ultroid ready. Start or re-configure deployment.");
+            updateStatus("✓ Ultroid is ready!");
             appendToLogs("Ultroid directory found: " + ultroidDir.getAbsolutePath());
             mBtnStartSetup.setEnabled(true);
+            if (actionButtons != null) actionButtons.setVisibility(View.VISIBLE);
         } else {
             showSetupState();
             updateStatus("Ultroid not found. Please start the initial setup.");
-            appendToLogs("Ultroid directory NOT found at " + ultroidDir.getAbsolutePath());
+            if (actionButtons != null) actionButtons.setVisibility(View.GONE);
         }
     }
 
@@ -283,23 +305,59 @@ public class HomeFragment extends Fragment implements View.OnClickListener {
                 return false;
             });
         }
-        mDeploymentContainer.setAlpha(0f);
-        mDeploymentContainer.setVisibility(View.VISIBLE);
-        mSetupContainer.setVisibility(View.GONE);
-        mFabShowLogs.setVisibility(View.VISIBLE);
-        mFabShowLogs.setAlpha(0f);
 
-        mDeploymentContainer.animate()
-            .alpha(1f)
-            .setDuration(CROSSFADE_DURATION)
-            .setInterpolator(new AccelerateDecelerateInterpolator())
-            .start();
+        // Show success state
+        if (mDeploymentContainer != null) {
+            mDeploymentContainer.setAlpha(0f);
+            mDeploymentContainer.setVisibility(View.VISIBLE);
+        }
         
-        mFabShowLogs.animate()
-            .alpha(1f)
-            .setDuration(CROSSFADE_DURATION)
-            .setInterpolator(new AccelerateDecelerateInterpolator())
-            .start();
+        if (mSetupContainer != null) {
+            mSetupContainer.setVisibility(View.GONE);
+        }
+        
+        if (mFabShowLogs != null) {
+            mFabShowLogs.setVisibility(View.VISIBLE);
+            mFabShowLogs.setAlpha(0f);
+        }
+
+        View view = getView();
+        if (view != null) {
+            // Find and update the status text with checkmark
+            TextView statusText = view.findViewById(R.id.status_text);
+            if (statusText != null) {
+                statusText.setText("✓ Ultroid is ready!");
+                statusText.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 24); // Specify SP unit
+            }
+
+            // Find and update the status icon
+            ImageView statusIcon = view.findViewById(R.id.status_icon);
+            if (statusIcon != null) {
+                statusIcon.setImageResource(android.R.drawable.ic_dialog_info);
+            }
+
+            // Hide the deployment status card if not actively deploying
+            View statusCard = view.findViewById(R.id.status_card);
+            if (statusCard != null && !isExecutingQueue) {
+                statusCard.setVisibility(View.GONE);
+            }
+        }
+
+        if (mDeploymentContainer != null) {
+            mDeploymentContainer.animate()
+                .alpha(1f)
+                .setDuration(CROSSFADE_DURATION)
+                .setInterpolator(new AccelerateDecelerateInterpolator())
+                .start();
+        }
+        
+        if (mFabShowLogs != null) {
+            mFabShowLogs.animate()
+                .alpha(1f)
+                .setDuration(CROSSFADE_DURATION)
+                .setInterpolator(new AccelerateDecelerateInterpolator())
+                .start();
+        }
     }
 
     @Override
@@ -334,13 +392,12 @@ public class HomeFragment extends Fragment implements View.OnClickListener {
         updateStatus("Deployment starting... See logs for details.");
 
         commandQueue.clear();
-
-        commandQueue.add(new CommandStep("Creating Ultroid directory...", "mkdir -p ~/" + ULTROID_DIR, "Ultroid directory verified/created."));
-        commandQueue.add(new CommandStep("Updating packages and installing dependencies...", "pkg update -y && pkg install -y git redis python3 coreutils", "System packages updated and dependencies installed."));
-        commandQueue.add(new CommandStep("Cloning/Pulling Ultroid repository...", "cd ~/" + ULTROID_DIR + " && (git clone https://github.com/TeamUltroid/Ultroid.git . || (git reset --hard && git pull))", "Ultroid repository cloned/updated."));
-        commandQueue.add(new CommandStep("Installing Python requirements for Ultroid...", "cd ~/" + ULTROID_DIR + " && pip install -r requirements.txt", "Python requirements installed."));
-        commandQueue.add(new CommandStep("Checking Ultroid installation status (example: version check)...", "cd ~/" + ULTROID_DIR + " && python3 -m ultroid --version", "Ultroid installation checked."));
-        commandQueue.add(new CommandStep("Deployment Finalizing", "echo \"Ultroid automated deployment steps finished. Manual configuration might be needed for API ID, HASH, and BOT_TOKEN.\"", "Deployment sequence finished. Please check logs."));
+        commandQueue.add(new CommandStep("Cleaning package cache...", "apt clean", "Package cache cleaned."));
+        commandQueue.add(new CommandStep("Updating package lists...", "apt update && apt-get update --fix-missing", "Package lists updated."));
+        commandQueue.add(new CommandStep("Installing dependencies...", "apt install -y git redis python3 coreutils", "Dependencies installed."));
+        commandQueue.add(new CommandStep("Checking git installation...", "git --version", "Git is installed and available."));
+        commandQueue.add(new CommandStep("Cloning/Pulling Ultroid repository...", "cd ~/ && (git clone https://github.com/TeamUltroid/Ultroid.git Ultroid || (cd Ultroid && git reset --hard && git pull))", "Ultroid repository cloned/updated."));
+        commandQueue.add(new CommandStep("Installing Python requirements for Ultroid...", "cd ~/Ultroid && pip install -r requirements.txt", "Python requirements installed."));
         
         isExecutingQueue = true;
         executeNextCommand();

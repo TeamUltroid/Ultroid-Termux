@@ -2,16 +2,21 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item
         android:id="@+id/navigation_home"
-        android:icon="@android:drawable/ic_menu_compass"
+        android:icon="@drawable/ic_home"
         android:title="Home" />
 
     <item
+        android:id="@+id/navigation_directory"
+        android:icon="@drawable/ic_directory"
+        android:title="Directory" />
+
+    <item
         android:id="@+id/navigation_configure"
-        android:icon="@android:drawable/ic_menu_preferences"
+        android:icon="@drawable/ic_configure"
         android:title="Configure" />
 
     <item
-        android:id="@+id/navigation_links"
-        android:icon="@android:drawable/ic_menu_share"
-        android:title="Links" />
+        android:id="@+id/navigation_about"
+        android:icon="@drawable/ic_about"
+        android:title="About" />
 </menu> 
