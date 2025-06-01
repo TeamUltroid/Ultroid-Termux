@@ -291,4 +291,15 @@ public class UltroidDeploymentActivity extends AppCompatActivity implements Bott
     public boolean isTermuxServiceBound() {
         return mIsBound;
     }
+
+    public void openTermuxActivity() {
+        Intent intent = new Intent(this, TermuxActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        try {
+            startActivity(intent);
+        } catch (Exception e) {
+            Logger.logStackTraceWithMessage(LOG_TAG, "Error starting TermuxActivity", e);
+            Toast.makeText(this, "Error opening Termux: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
+    }
 } 

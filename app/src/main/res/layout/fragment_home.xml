@@ -76,34 +76,21 @@
             android:orientation="vertical"
             android:visibility="visible">
 
-            <com.google.android.material.appbar.AppBarLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:background="@android:color/white"
-                android:elevation="4dp">
-
-                <androidx.appcompat.widget.Toolbar
-                    android:id="@+id/toolbar_home"
-                    android:layout_width="match_parent"
-                    android:layout_height="?attr/actionBarSize"
-                    app:title="Ultroid"
-                    app:titleTextColor="@color/ultroid_primary"
-                    android:background="@android:color/white">
-
-                    <ImageButton
-                        android:id="@+id/btn_show_logs"
-                        android:layout_width="48dp"
-                        android:layout_height="48dp"
-                        android:src="@android:drawable/ic_menu_recent_history"
-                        android:background="?attr/selectableItemBackgroundBorderless"
-                        android:tint="@color/ultroid_primary"
-                        android:layout_gravity="end"
-                        android:padding="12dp"
-                        android:contentDescription="Show Logs"/>
-
-                </androidx.appcompat.widget.Toolbar>
-
-            </com.google.android.material.appbar.AppBarLayout>
+            <!-- Terminal Button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_open_termux"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="24dp"
+                android:layout_marginBottom="8dp"
+                app:icon="@drawable/ic_terminal"
+                app:iconTint="@color/ultroid_primary"
+                app:backgroundTint="@android:color/white"
+                app:cornerRadius="28dp"
+                app:iconGravity="textStart"
+                android:contentDescription="Open Termux"
+                android:elevation="6dp"/>
 
             <ScrollView
                 android:layout_width="match_parent"
@@ -186,34 +173,46 @@
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btn_start_ultroid"
                             android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
+                            android:layout_height="56dp"
                             android:text="Start Ultroid"
                             android:textColor="@android:color/white"
                             android:textSize="16sp"
                             app:cornerRadius="12dp"
                             app:backgroundTint="@color/ultroid_primary"
-                            android:layout_marginBottom="12dp"/>
+                            android:layout_marginBottom="12dp"
+                            app:icon="@android:drawable/ic_media_play"
+                            app:iconPadding="12dp"
+                            app:iconTint="@android:color/white"
+                            app:iconGravity="textStart"/>
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btn_update_env"
                             android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
+                            android:layout_height="56dp"
                             android:text="Update Env"
                             android:textColor="@android:color/white"
                             android:textSize="16sp"
                             app:cornerRadius="12dp"
                             app:backgroundTint="@color/ultroid_primary"
-                            android:layout_marginBottom="12dp"/>
+                            android:layout_marginBottom="12dp"
+                            app:icon="@android:drawable/ic_menu_edit"
+                            app:iconPadding="12dp"
+                            app:iconTint="@android:color/white"
+                            app:iconGravity="textStart"/>
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btn_uninstall_ultroid"
                             android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
+                            android:layout_height="56dp"
                             android:text="Uninstall Ultroid"
                             android:textColor="@android:color/white"
                             android:textSize="16sp"
                             app:cornerRadius="12dp"
-                            app:backgroundTint="@color/ultroid_primary"/>
+                            app:backgroundTint="@color/ultroid_primary"
+                            app:icon="@android:drawable/ic_menu_delete"
+                            app:iconPadding="12dp"
+                            app:iconTint="@android:color/white"
+                            app:iconGravity="textStart"/>
                     </LinearLayout>
 
                 </LinearLayout>

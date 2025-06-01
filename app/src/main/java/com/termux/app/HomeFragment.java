@@ -77,6 +77,10 @@ public class HomeFragment extends Fragment implements View.OnClickListener {
     private Queue<CommandStep> commandQueue = new LinkedList<>();
     private boolean isExecutingQueue = false;
 
+    private MaterialButton mBtnStartUltroid;
+    private AppShell ultroidAppShell = null;
+    private boolean isUltroidRunning = false;
+
     private static class CommandStep {
         String statusMessage;
         String command;
@@ -104,7 +108,6 @@ public class HomeFragment extends Fragment implements View.OnClickListener {
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_home, container, false);
 
-        mToolbar = view.findViewById(R.id.toolbar_home);
         mStatusText = view.findViewById(R.id.status_text);
         mSetupContainer = view.findViewById(R.id.setup_container);
         mDeploymentContainer = view.findViewById(R.id.deployment_container);
@@ -130,6 +133,29 @@ public class HomeFragment extends Fragment implements View.OnClickListener {
         mBtnStartSetup.setOnClickListener(this);
         mFabShowLogs.setOnClickListener(this);
         mBtnClearLogs.setOnClickListener(this);
+
+        // Add listener for Update Env button
+        MaterialButton btnUpdateEnv = view.findViewById(R.id.btn_update_env);
+        if (btnUpdateEnv != null) {
+            btnUpdateEnv.setOnClickListener(v -> openConfigureFragment());
+        }
+
+        // Add listener for Open Termux button
+        MaterialButton btnOpenTermux = view.findViewById(R.id.btn_open_termux);
+        if (btnOpenTermux != null) {
+            btnOpenTermux.setOnClickListener(v -> openTermuxActivity());
+        }
+
+        mBtnStartUltroid = view.findViewById(R.id.btn_start_ultroid);
+        if (mBtnStartUltroid != null) {
+            mBtnStartUltroid.setOnClickListener(v -> {
+                if (!isUltroidRunning) {
+                    startUltroid();
+                } else {
+                    stopUltroid();
+                }
+            });
+        }
 
         mFabShowLogs.setVisibility(View.GONE); // Initially hidden
 
@@ -567,6 +593,92 @@ public class HomeFragment extends Fragment implements View.OnClickListener {
         Logger.logDebug(LOG_TAG, "Status Updated: " + status);
     }
     
-    // BroadcastReceiver is likely no longer needed
-    // private class CommandResultReceiver extends BroadcastReceiver { ... }
+    private void openConfigureFragment() {
+        if (getActivity() == null) return;
+        getActivity().getSupportFragmentManager()
+            .beginTransaction()
+            .replace(R.id.main_content_frame, new ConfigureFragment())
+            .addToBackStack(null)
+            .commit();
+    }
+
+    private void startUltroid() {
+        if (isUltroidRunning) return;
+        File ultroidDir = new File(TermuxConstants.TERMUX_HOME_DIR_PATH, ULTROID_DIR);
+        if (!ultroidDir.exists()) {
+            appendToLogs("Ultroid directory not found.");
+            return;
+        }
+        appendToLogs("Starting Ultroid: Installing requirements and launching pyUltroid...");
+        updateStartButtonState(true);
+        isUltroidRunning = true;
+        if (mBtnStartUltroid != null) {
+            mBtnStartUltroid.setEnabled(false);
+        }
+        String command = "pip3 install -r requirements.txt && python3 -m pyUltroid";
+        TermuxService termuxService = mActivity.getTermuxService();
+        ultroidAppShell = termuxService.createTermuxTask(
+            TermuxConstants.TERMUX_PREFIX_DIR_PATH + "/bin/sh",
+            new String[]{"-c", command},
+            null,
+            ultroidDir.getAbsolutePath()
+        );
+        if (ultroidAppShell == null) {
+            appendToLogs("Failed to start Ultroid process.");
+            updateStartButtonState(false);
+            isUltroidRunning = false;
+            if (mBtnStartUltroid != null) mBtnStartUltroid.setEnabled(true);
+            return;
+        }
+        final ExecutionCommand cmd = ultroidAppShell.getExecutionCommand();
+        new Thread(() -> {
+            int elapsed = 0;
+            while (!cmd.hasExecuted() && !cmd.isStateFailed()) {
+                try { Thread.sleep(500); elapsed += 500; } catch (InterruptedException ignored) {}
+                if (elapsed % 5000 == 0) {
+                    mHandler.post(() -> appendToLogs("Ultroid running..."));
+                }
+            }
+            mHandler.post(() -> {
+                String stdout = (cmd.resultData != null && cmd.resultData.stdout != null) ? cmd.resultData.stdout.toString().trim() : "";
+                String stderr = (cmd.resultData != null && cmd.resultData.stderr != null) ? cmd.resultData.stderr.toString().trim() : "";
+                int exitCode = (cmd.resultData != null && cmd.resultData.exitCode != null) ? cmd.resultData.exitCode : -1;
+                if (!stdout.isEmpty()) appendToLogs("Ultroid STDOUT:\n" + stdout);
+                if (!stderr.isEmpty()) appendToLogs("Ultroid STDERR:\n" + stderr);
+                appendToLogs("Ultroid process exited with code: " + exitCode);
+                isUltroidRunning = false;
+                updateStartButtonState(false);
+                if (mBtnStartUltroid != null) mBtnStartUltroid.setEnabled(true);
+            });
+        }).start();
+    }
+
+    private void stopUltroid() {
+        if (!isUltroidRunning || ultroidAppShell == null) return;
+        appendToLogs("Stopping Ultroid...");
+        TermuxService termuxService = mActivity.getTermuxService();
+        if (termuxService != null) {
+            ultroidAppShell.killIfExecuting(getContext(), true);
+        }
+        isUltroidRunning = false;
+        updateStartButtonState(false);
+        appendToLogs("Ultroid stopped.");
+    }
+
+    private void updateStartButtonState(boolean running) {
+        if (mBtnStartUltroid == null) return;
+        if (running) {
+            mBtnStartUltroid.setText("Stop Ultroid");
+            mBtnStartUltroid.setIconResource(android.R.drawable.ic_media_pause);
+        } else {
+            mBtnStartUltroid.setText("Start Ultroid");
+            mBtnStartUltroid.setIconResource(android.R.drawable.ic_media_play);
+        }
+    }
+
+    private void openTermuxActivity() {
+        if (mActivity != null) {
+            mActivity.openTermuxActivity();
+        }
+    }
 } 
