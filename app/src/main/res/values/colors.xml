@@ -10,9 +10,10 @@
     <!-- Ultroid Deployment Colors -->
     <color name="ultroid_primary">#2196F3</color>
     <color name="ultroid_primary_dark">#1976D2</color>
-    <color name="ultroid_accent">#4CAF50</color>
-    <color name="ultroid_background">#FFFFFF</color>
-    <color name="ultroid_text_primary">#000000</color>
+    <color name="ultroid_accent">#FF4081</color>
+    <color name="ultroid_background">#FAFAFA</color>
+    <color name="ultroid_text_primary">#212121</color>
     <color name="ultroid_text_secondary">#757575</color>
     <color name="ultroid_status_bg">#F5F5F5</color>
+    <color name="ultroid_card_background">#FFFFFF</color>
 </resources>
