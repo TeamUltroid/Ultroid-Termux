@@ -345,29 +345,16 @@ public class HomeFragment extends Fragment implements View.OnClickListener {
         
         String timestamp = new SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(new Date());
         
-        // Add colored formatting for different log types
-        String formattedLine;
-        String originalText = text;
-        if (text.toLowerCase().contains("error") || text.toLowerCase().contains("fail")) {
-            formattedLine = "<font color='#FF5555'>[" + timestamp + "] " + text + "</font>";
-        } else if (text.toLowerCase().contains("success") || text.toLowerCase().contains("installed") || 
-                   text.toLowerCase().contains("done") || text.toLowerCase().contains("ready")) {
-            formattedLine = "<font color='#50FA7B'>[" + timestamp + "] " + text + "</font>";
-        } else if (text.toLowerCase().contains("warning") || text.toLowerCase().contains("caution")) {
-            formattedLine = "<font color='#F1FA8C'>[" + timestamp + "] " + text + "</font>";
-        } else if (text.toLowerCase().contains("executing") || text.toLowerCase().contains("running")) {
-            formattedLine = "<font color='#8BE9FD'>[" + timestamp + "] " + text + "</font>";
-        } else {
-            formattedLine = "<font color='#F8F8F2'>[" + timestamp + "] " + text + "</font>";
-        }
+        // Plain text formatting for logs
+        String formattedLine = "[" + timestamp + "] " + text;
         
         // Store the raw log text
-        mLogsBuilder.append(timestamp).append(": ").append(originalText).append("\n");
+        mLogsBuilder.append(timestamp).append(": ").append(text).append("\n");
         
         // Ensure UI updates are on the main thread
         mHandler.post(() -> {
-            // Display with HTML formatting
-            mLogsText.append(android.text.Html.fromHtml(formattedLine + "<br>", android.text.Html.FROM_HTML_MODE_LEGACY));
+            // Display as plain text with line break
+            mLogsText.append(formattedLine + "\n");
             mLogsBottomSheet.post(() -> mLogsBottomSheet.fullScroll(View.FOCUS_DOWN));
         });
     }
