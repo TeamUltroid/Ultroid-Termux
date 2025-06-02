@@ -42,11 +42,31 @@ public class UltroidDeploymentActivity extends AppCompatActivity implements Bott
 
     private static final String LOG_TAG = "UltroidDeploymentActivity";
     private static final int REQUEST_CODE_OVERLAY_PERMISSION = 1234;
+    
+    // For handling permission results with the new ActivityResultLauncher API
+    private androidx.activity.result.ActivityResultLauncher<Intent> mOverlayPermissionLauncher;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_ultroid_deployment);
+        
+        // Register the ActivityResultLauncher for overlay permission
+        mOverlayPermissionLauncher = registerForActivityResult(
+            new androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    if (Settings.canDrawOverlays(this)) {
+                        Logger.logInfo(LOG_TAG, "Display over other apps permission granted.");
+                        Toast.makeText(this, "Permission granted - functionality enabled", Toast.LENGTH_SHORT).show();
+                    } else {
+                        Logger.logWarn(LOG_TAG, "Display over other apps permission was not granted.");
+                        String errorMsg = getString(R.string.error_display_over_other_apps_permission_not_granted_to_start_terminal);
+                        Logger.showToast(this, errorMsg, true);
+                    }
+                }
+            }
+        );
         
         // Set the status bar color
         getWindow().setStatusBarColor(getResources().getColor(R.color.ultroid_primary_dark));

@@ -161,6 +161,12 @@ public class HomeFragment extends Fragment implements View.OnClickListener {
             });
         }
 
+        // Add listener for Uninstall Ultroid button
+        MaterialButton btnUninstallUltroid = view.findViewById(R.id.btn_uninstall_ultroid);
+        if (btnUninstallUltroid != null) {
+            btnUninstallUltroid.setOnClickListener(v -> uninstallUltroid());
+        }
+
         mFabShowLogs.setVisibility(View.GONE); // Initially hidden
 
         setupBottomSheet();
@@ -176,6 +182,79 @@ public class HomeFragment extends Fragment implements View.OnClickListener {
         if (mUltroidSubtitle != null) mUltroidSubtitle.setTypeface(poppinsRegular);
 
         return view;
+    }
+
+    /**
+     * Uninstall Ultroid by removing the Ultroid directory from $HOME.
+     * This is triggered by the Uninstall Ultroid button.
+     */
+    private void uninstallUltroid() {
+        if (isExecutingQueue) {
+            appendToLogs("Cannot uninstall while deployment is in progress.");
+            Toast.makeText(getContext(), "Cannot uninstall during deployment.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (isUltroidRunning) {
+            appendToLogs("Cannot uninstall while Ultroid is running.");
+            Toast.makeText(getContext(), "Stop Ultroid before uninstalling.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        appendToLogs("Uninstalling Ultroid: removing Ultroid directory...");
+        updateStatus("Uninstalling Ultroid...");
+
+        // Run rm -rf Ultroid in Termux $HOME
+        if (mActivity == null || !mActivity.isTermuxServiceBound()) {
+            appendToLogs("Error: Termux service not available for uninstall.");
+            Toast.makeText(getContext(), "Termux service not available.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        TermuxService termuxService = mActivity.getTermuxService();
+        if (termuxService == null) {
+            appendToLogs("Error: TermuxService is null for uninstall.");
+            Toast.makeText(getContext(), "Termux service not available.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        String command = "rm -rf Ultroid";
+        AppShell shell = termuxService.createTermuxTask(
+            TermuxConstants.TERMUX_PREFIX_DIR_PATH + "/bin/sh",
+            new String[]{"-c", command},
+            null,
+            TermuxConstants.TERMUX_HOME_DIR_PATH
+        );
+        if (shell == null) {
+            appendToLogs("Failed to start shell for uninstall.");
+            Toast.makeText(getContext(), "Failed to start uninstall.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        final ExecutionCommand cmd = shell.getExecutionCommand();
+        new Thread(() -> {
+            int elapsed = 0;
+            while (!cmd.hasExecuted() && !cmd.isStateFailed() && elapsed < 60_000) {
+                try { Thread.sleep(500); elapsed += 500; } catch (InterruptedException ignored) {}
+                if (elapsed % 5000 == 0 && elapsed > 0) {
+                    mHandler.post(() -> appendToLogs("Still removing Ultroid directory..."));
+                }
+            }
+            mHandler.post(() -> {
+                String stdout = (cmd.resultData != null && cmd.resultData.stdout != null) ? cmd.resultData.stdout.toString().trim() : "";
+                String stderr = (cmd.resultData != null && cmd.resultData.stderr != null) ? cmd.resultData.stderr.toString().trim() : "";
+                int exitCode = (cmd.resultData != null && cmd.resultData.exitCode != null) ? cmd.resultData.exitCode : -1;
+                
+                if (!stdout.isEmpty()) appendToLogs("Uninstall STDOUT: " + stdout);
+                if (!stderr.isEmpty()) appendToLogs("Uninstall STDERR: " + stderr);
+                
+                if (exitCode == 0) {
+                    appendToLogs("Ultroid directory removed successfully.");
+                    updateStatus("Ultroid uninstalled.");
+                    checkUltroidInstallation();
+                    Toast.makeText(getContext(), "Ultroid uninstalled.", Toast.LENGTH_SHORT).show();
+                } else {
+                    appendToLogs("Failed to remove Ultroid directory. Exit code: " + exitCode);
+                    updateStatus("Uninstall failed.");
+                    Toast.makeText(getContext(), "Failed to uninstall Ultroid.", Toast.LENGTH_SHORT).show();
+                }
+            });
+        }).start();
     }
 
     private void setupBottomSheet() {
@@ -427,7 +506,18 @@ public class HomeFragment extends Fragment implements View.OnClickListener {
         commandQueue.clear();
         commandQueue.add(new CommandStep("Cleaning package cache...", "apt clean", "Package cache cleaned."));
         commandQueue.add(new CommandStep("Updating package lists...", "apt update && apt-get update --fix-missing", "Package lists updated."));
-        commandQueue.add(new CommandStep("Installing dependencies...", "apt install -y git redis python3 coreutils", "Dependencies installed."));
+        commandQueue.add(new CommandStep("Installing tur-repo...", "pkg install -y tur-repo", "tur-repo installed."));
+        commandQueue.add(new CommandStep("Installing dependencies...", "apt install -y git redis coreutils libexpat openssl libffi", "Dependencies installed (including libexpat, openssl, libffi)."));
+        commandQueue.add(new CommandStep("Installing Python 3.10...", "pkg install -y python3.10", "Python 3.10 installed."));
+        commandQueue.add(new CommandStep("Fixing Python sysconfigdata...", 
+            "_file=\"$(find $PREFIX/lib/python3* -name \"_sysconfigdata*.py\" | head -n 1)\"; " +
+            "if [ ! -z \"$_file\" ]; then " +
+            "rm -rf $PREFIX/lib/python3*/__pycache__; " +
+            "cp \"$_file\" \"$_file.backup\"; " +
+            "sed -i 's|-fno-openmp-implicit-rpath||g' \"$_file\"; " +
+            "echo \"Fixed Python sysconfigdata file: $_file\"; " +
+            "else echo \"Python sysconfigdata file not found.\"; fi", 
+            "Python sysconfigdata fixed for proper package compilation."));
         commandQueue.add(new CommandStep("Checking git installation...", "git --version", "Git is installed and available."));
         commandQueue.add(new CommandStep("Cloning/Pulling Ultroid repository...", "cd ~/ && (git clone https://github.com/TeamUltroid/Ultroid.git Ultroid || (cd Ultroid && git reset --hard && git pull))", "Ultroid repository cloned/updated."));
         commandQueue.add(new CommandStep("Installing Python requirements for Ultroid...", "cd ~/Ultroid && pip install -r requirements.txt", "Python requirements installed."));
@@ -518,6 +608,10 @@ public class HomeFragment extends Fragment implements View.OnClickListener {
 
             int elapsedTime = 0; // in 100ms intervals
             boolean isConcluded = false;
+            
+            // Track last known output lengths for real-time output
+            int lastStdoutLength = 0;
+            int lastStderrLength = 0;
 
             while (!isConcluded && elapsedTime < timeoutSeconds * 10) { 
                 try {
@@ -526,6 +620,33 @@ public class HomeFragment extends Fragment implements View.OnClickListener {
 
                     synchronized (cmd) { 
                         isConcluded = cmd.hasExecuted() || cmd.isStateFailed();
+                        
+                        // Check for real-time output
+                        if (cmd.resultData != null) {
+                            // Check for new stdout content
+                            if (cmd.resultData.stdout != null) {
+                                String stdout = cmd.resultData.stdout.toString();
+                                if (stdout.length() > lastStdoutLength) {
+                                    final String newOutput = stdout.substring(lastStdoutLength);
+                                    lastStdoutLength = stdout.length();
+                                    if (!newOutput.trim().isEmpty()) {
+                                        mHandler.post(() -> appendToLogs("LIVE [" + cmd.commandLabel + "] stdout: " + newOutput.trim()));
+                                    }
+                                }
+                            }
+                            
+                            // Check for new stderr content
+                            if (cmd.resultData.stderr != null) {
+                                String stderr = cmd.resultData.stderr.toString();
+                                if (stderr.length() > lastStderrLength) {
+                                    final String newOutput = stderr.substring(lastStderrLength);
+                                    lastStderrLength = stderr.length();
+                                    if (!newOutput.trim().isEmpty()) {
+                                        mHandler.post(() -> appendToLogs("LIVE [" + cmd.commandLabel + "] stderr: " + newOutput.trim()));
+                                    }
+                                }
+                            }
+                        }
                     }
 
                     if (elapsedTime % 50 == 0) { // Log progress every 5 seconds
@@ -612,17 +733,49 @@ public class HomeFragment extends Fragment implements View.OnClickListener {
     private void startUltroid() {
         if (isUltroidRunning) return;
         File ultroidDir = new File(TermuxConstants.TERMUX_HOME_DIR_PATH, ULTROID_DIR);
+        boolean needsClone = false;
+        
         if (!ultroidDir.exists()) {
-            appendToLogs("Ultroid directory not found.");
-            return;
+            appendToLogs("Ultroid directory not found. Will attempt to clone repository...");
+            ultroidDir.mkdirs();
+            needsClone = true;
+        } else if (ultroidDir.list() == null || ultroidDir.list().length == 0) {
+            appendToLogs("Ultroid directory exists but is empty. Will attempt to clone repository...");
+            needsClone = true;
         }
+        
         appendToLogs("Starting Ultroid: Installing requirements and launching pyUltroid...");
         updateStartButtonState(true);
         isUltroidRunning = true;
         if (mBtnStartUltroid != null) {
             mBtnStartUltroid.setEnabled(false);
         }
-        String command = "pip3 install -r requirements.txt && python3 -m pyUltroid";
+        
+        // Prepare the command - if directory doesn't exist or is empty, clone first
+        StringBuilder commandBuilder = new StringBuilder();
+        
+        // Install tur-repo before python
+        commandBuilder.append("pkg install -y tur-repo && ");
+        // First install Python 3.10 specifically and other essential packages, regardless of clone status
+        commandBuilder.append("pkg install -y python3.10 && ");
+        
+        // Then apply Python sysconfigdata fix to prevent pip installation issues
+        commandBuilder.append("_file=\"$(find $PREFIX/lib/python3* -name \"_sysconfigdata*.py\" | head -n 1)\"; ");
+        commandBuilder.append("if [ ! -z \"$_file\" ]; then ");
+        commandBuilder.append("rm -rf $PREFIX/lib/python3*/__pycache__; ");
+        commandBuilder.append("cp \"$_file\" \"$_file.backup\"; ");
+        commandBuilder.append("sed -i 's|-fno-openmp-implicit-rpath||g' \"$_file\"; ");
+        commandBuilder.append("echo \"Fixed Python sysconfigdata file: $_file\"; ");
+        commandBuilder.append("else echo \"Python sysconfigdata file not found.\"; fi && ");
+        
+        if (needsClone) {
+            commandBuilder.append("pkg install -y git python3-pip redis coreutils libexpat openssl libffi && ");
+            commandBuilder.append("cd ~/ && git clone https://github.com/TeamUltroid/Ultroid.git Ultroid && ");
+        }
+        
+        commandBuilder.append("cd ~/Ultroid && pip3 install -r requirements.txt && python3 -m pyUltroid");
+        String command = commandBuilder.toString();
+        
         TermuxService termuxService = mActivity.getTermuxService();
         ultroidAppShell = termuxService.createTermuxTask(
             TermuxConstants.TERMUX_PREFIX_DIR_PATH + "/bin/sh",
@@ -640,10 +793,64 @@ public class HomeFragment extends Fragment implements View.OnClickListener {
         final ExecutionCommand cmd = ultroidAppShell.getExecutionCommand();
         new Thread(() -> {
             int elapsed = 0;
+            boolean pipNotFoundHandled = false;
+            
+            // Track last known output lengths for real-time output
+            int lastStdoutLength = 0;
+            int lastStderrLength = 0;
+            
             while (!cmd.hasExecuted() && !cmd.isStateFailed()) {
                 try { Thread.sleep(500); elapsed += 500; } catch (InterruptedException ignored) {}
+                
+                // Real-time output monitoring
+                synchronized (cmd) {
+                    if (cmd.resultData != null) {
+                        // Check for new stdout content
+                        if (cmd.resultData.stdout != null) {
+                            String stdout = cmd.resultData.stdout.toString();
+                            if (stdout.length() > lastStdoutLength) {
+                                final String newOutput = stdout.substring(lastStdoutLength);
+                                lastStdoutLength = stdout.length();
+                                if (!newOutput.trim().isEmpty()) {
+                                    mHandler.post(() -> appendToLogs("LIVE Ultroid stdout: " + newOutput.trim()));
+                                }
+                            }
+                        }
+                        
+                        // Check for new stderr content
+                        if (cmd.resultData.stderr != null) {
+                            String stderr = cmd.resultData.stderr.toString();
+                            if (stderr.length() > lastStderrLength) {
+                                final String newOutput = stderr.substring(lastStderrLength);
+                                lastStderrLength = stderr.length();
+                                if (!newOutput.trim().isEmpty()) {
+                                    mHandler.post(() -> appendToLogs("LIVE Ultroid stderr: " + newOutput.trim()));
+                                }
+                                
+                                // Check for pip3 not found error
+                                if (!pipNotFoundHandled && stderr.contains("pip3: not found")) {
+                                    pipNotFoundHandled = true;
+                                    final String installCmd = "pkg install -y python3.10 python3-pip openssl libffi libexpat";
+                                    mHandler.post(() -> appendToLogs("ERROR: pip3 not found. Please ensure Python and pip are installed.\nAttempting to install pip3 automatically..."));
+                                    // Attempt to install pip3 automatically
+                                    try {
+                                        Process installPip = Runtime.getRuntime().exec(new String[]{"sh", "-c", installCmd});
+                                        int result = installPip.waitFor();
+                                        final int resultFinal = result;
+                                        mHandler.post(() -> appendToLogs("Python 3.10 and pip3 installation attempted (no prompts). Exit code: " + resultFinal + ". Please retry starting Ultroid if the problem persists."));
+                                    } catch (Exception e) {
+                                        final String errMsg = e.getMessage();
+                                        mHandler.post(() -> appendToLogs("Automatic pip3/openssl installation failed: " + errMsg));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
                 if (elapsed % 5000 == 0) {
-                    mHandler.post(() -> appendToLogs("Ultroid running..."));
+                    final int seconds = elapsed/1000;
+                    mHandler.post(() -> appendToLogs("Ultroid running... (elapsed: " + seconds + " seconds)"));
                 }
             }
             mHandler.post(() -> {
@@ -652,6 +859,9 @@ public class HomeFragment extends Fragment implements View.OnClickListener {
                 int exitCode = (cmd.resultData != null && cmd.resultData.exitCode != null) ? cmd.resultData.exitCode : -1;
                 if (!stdout.isEmpty()) appendToLogs("Ultroid STDOUT:\n" + stdout);
                 if (!stderr.isEmpty()) appendToLogs("Ultroid STDERR:\n" + stderr);
+                if (stderr.contains("pip3: not found")) {
+                    appendToLogs("ERROR: pip3 is still not found after attempted installation. Please install pip3 manually using 'pkg install python python3-pip' in Termux, then try again.");
+                }
                 appendToLogs("Ultroid process exited with code: " + exitCode);
                 isUltroidRunning = false;
                 updateStartButtonState(false);
