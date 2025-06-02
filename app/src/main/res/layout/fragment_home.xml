@@ -259,7 +259,7 @@
         android:id="@+id/logs_bottom_sheet"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@android:color/white"
+        android:background="#1D1F21"
         app:behavior_hideable="true"
         app:behavior_peekHeight="0dp"
         app:layout_behavior="com.google.android.material.bottomsheet.BottomSheetBehavior">
@@ -267,44 +267,45 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="16dp">
+            android:orientation="vertical">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
-                android:paddingBottom="16dp">
+                android:background="#2D2F31"
+                android:paddingVertical="8dp"
+                android:paddingHorizontal="12dp">
 
                 <TextView
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Session Logs"
-                    android:textSize="18sp"
-                    android:textColor="@color/ultroid_text_primary"/>
+                    android:text="$ ultroid_logs"
+                    android:textSize="16sp"
+                    android:fontFamily="@font/fira_code"
+                    android:textColor="#8AE234"/>
 
                 <ImageButton
                     android:id="@+id/btn_clear_logs"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
                     android:src="@android:drawable/ic_menu_delete"
                     android:background="?attr/selectableItemBackgroundBorderless"
-                    android:tint="@color/ultroid_primary"
-                    android:padding="12dp"
+                    android:tint="#CCCCCC"
+                    android:padding="8dp"
                     android:contentDescription="Clear Logs"/>
 
-                <Button
+                <ImageButton
                     android:id="@+id/btn_copy_logs"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Copy Logs"
-                    android:layout_marginStart="8dp"
-                    android:layout_marginLeft="8dp"
-                    android:layout_gravity="end"
-                    android:backgroundTint="@color/ultroid_primary"
-                    android:textColor="@android:color/white" />
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:src="@android:drawable/ic_menu_save"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:tint="#CCCCCC"
+                    android:padding="8dp"
+                    android:contentDescription="Copy Logs"/>
 
             </LinearLayout>
 
@@ -312,10 +313,12 @@
                 android:id="@+id/logs_text"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textColor="@color/ultroid_text_primary"
+                android:textColor="#F8F8F2"
                 android:textSize="14sp"
-                android:fontFamily="monospace"
-                android:lineSpacingExtra="4dp"/>
+                android:fontFamily="@font/fira_code"
+                android:lineSpacingExtra="4dp"
+                android:padding="16dp"
+                android:minHeight="300dp"/>
 
         </LinearLayout>
 

@@ -124,7 +124,7 @@ public class HomeFragment extends Fragment implements View.OnClickListener {
         mLogsText = view.findViewById(R.id.logs_text);
         mLogsText.setTextIsSelectable(true);
 
-        Button mBtnCopyLogs = view.findViewById(R.id.btn_copy_logs);
+        ImageButton mBtnCopyLogs = view.findViewById(R.id.btn_copy_logs);
         if (mBtnCopyLogs != null) {
             mBtnCopyLogs.setOnClickListener(v -> {
                 android.content.ClipboardManager clipboard = (android.content.ClipboardManager) requireContext().getSystemService(Context.CLIPBOARD_SERVICE);
@@ -177,7 +177,7 @@ public class HomeFragment extends Fragment implements View.OnClickListener {
         Typeface poppinsRegular = ResourcesCompat.getFont(requireContext(), R.font.poppins_bold);
         mStatusText.setTypeface(poppinsBold);
         mBtnStartSetup.setTypeface(poppinsBold);
-        mLogsText.setTypeface(poppinsBold);
+        // Don't set Poppins on logs text as it uses Fira Code from XML
         if (mUltroidTitle != null) mUltroidTitle.setTypeface(poppinsBold);
         if (mUltroidSubtitle != null) mUltroidSubtitle.setTypeface(poppinsRegular);
 
@@ -261,41 +261,55 @@ public class HomeFragment extends Fragment implements View.OnClickListener {
         mBottomSheetBehavior = BottomSheetBehavior.from(mLogsBottomSheet);
         mBottomSheetBehavior.setState(BottomSheetBehavior.STATE_HIDDEN);
         
+        // Set rounded corners for the bottom sheet (terminal window appearance)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            mLogsBottomSheet.setOutlineProvider(new android.view.ViewOutlineProvider() {
+                @Override
+                public void getOutline(View view, android.graphics.Outline outline) {
+                    outline.setRoundRect(0, 0, view.getWidth(), view.getHeight() + 20, 16);
+                }
+            });
+            mLogsBottomSheet.setClipToOutline(true);
+        }
+        
         mBottomSheetBehavior.addBottomSheetCallback(new BottomSheetBehavior.BottomSheetCallback() {
             @Override
             public void onStateChanged(@NonNull View bottomSheet, int newState) {
-                if (newState == BottomSheetBehavior.STATE_HIDDEN) {
+                if (newState == BottomSheetBehavior.STATE_EXPANDED) {
+                    dimBackground(true);
+                } else if (newState == BottomSheetBehavior.STATE_HIDDEN) {
                     dimBackground(false);
                 }
             }
 
             @Override
             public void onSlide(@NonNull View bottomSheet, float slideOffset) {
-                // Dimming effect can be adjusted or removed if not desired for FAB setup
-                // dimBackground(true, slideOffset);
+                // Adjust dimming based on slide progress
+                if (slideOffset > 0) {
+                    dimBackground(true, slideOffset);
+                }
             }
         });
     }
 
     private void dimBackground(boolean dim) {
-         // Get the root view of the fragment
+        dimBackground(dim, dim ? 0.5f : 0f);
+    }
+    
+    private void dimBackground(boolean dim, float intensity) {
+        // Get the root view of the fragment
         View rootView = getView();
         if (rootView == null) return;
 
         // Find the FrameLayout that contains the setup and deployment containers
-        FrameLayout mainContentContainer = rootView.findViewById(R.id.main_content_frame); 
+        FrameLayout mainContentContainer = rootView.findViewById(R.id.main_content_frame);
         
         if (mainContentContainer != null) {
-            mainContentContainer.setAlpha(dim ? 0.5f : 1f);
+            float alpha = dim ? Math.max(0.5f, Math.min(0.8f, intensity)) : 1f;
+            mainContentContainer.setAlpha(alpha);
         } else {
             // Fallback or error logging if main_content_frame is not found
             Logger.logError(LOG_TAG, "main_content_frame not found for dimBackground");
-            // As a last resort, try to dim the deployment or setup container directly if visible
-            if (mDeploymentContainer != null && mDeploymentContainer.getVisibility() == View.VISIBLE) {
-                mDeploymentContainer.setAlpha(dim ? 0.5f : 1f);
-            } else if (mSetupContainer != null && mSetupContainer.getVisibility() == View.VISIBLE) {
-                mSetupContainer.setAlpha(dim ? 0.5f : 1f);
-            }
         }
     }
 
@@ -303,10 +317,20 @@ public class HomeFragment extends Fragment implements View.OnClickListener {
     private void toggleLogs() {
         if (mBottomSheetBehavior.getState() == BottomSheetBehavior.STATE_HIDDEN) {
             mBottomSheetBehavior.setState(BottomSheetBehavior.STATE_EXPANDED);
-            // dimBackground(true); // Optional: dim background when logs are shown
+            dimBackground(true);
+            
+            // Create a "terminal starting" effect
+            if (mLogsText != null) {
+                mLogsText.setAlpha(0f);
+                mLogsText.animate()
+                    .alpha(1f)
+                    .setDuration(300)
+                    .setStartDelay(100)
+                    .start();
+            }
         } else {
             mBottomSheetBehavior.setState(BottomSheetBehavior.STATE_HIDDEN);
-            // dimBackground(false); // Optional: undim background when logs are hidden
+            dimBackground(false);
         }
     }
 
@@ -318,16 +342,36 @@ public class HomeFragment extends Fragment implements View.OnClickListener {
 
     private void appendToLogs(String text) {
         if (text == null || mLogsText == null || mLogsBuilder == null || mLogsBottomSheet == null) return;
+        
         String timestamp = new SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(new Date());
-        mLogsBuilder.append(timestamp).append(": ").append(text).append("\n");
+        
+        // Add colored formatting for different log types
+        String formattedLine;
+        String originalText = text;
+        if (text.toLowerCase().contains("error") || text.toLowerCase().contains("fail")) {
+            formattedLine = "<font color='#FF5555'>[" + timestamp + "] " + text + "</font>";
+        } else if (text.toLowerCase().contains("success") || text.toLowerCase().contains("installed") || 
+                   text.toLowerCase().contains("done") || text.toLowerCase().contains("ready")) {
+            formattedLine = "<font color='#50FA7B'>[" + timestamp + "] " + text + "</font>";
+        } else if (text.toLowerCase().contains("warning") || text.toLowerCase().contains("caution")) {
+            formattedLine = "<font color='#F1FA8C'>[" + timestamp + "] " + text + "</font>";
+        } else if (text.toLowerCase().contains("executing") || text.toLowerCase().contains("running")) {
+            formattedLine = "<font color='#8BE9FD'>[" + timestamp + "] " + text + "</font>";
+        } else {
+            formattedLine = "<font color='#F8F8F2'>[" + timestamp + "] " + text + "</font>";
+        }
+        
+        // Store the raw log text
+        mLogsBuilder.append(timestamp).append(": ").append(originalText).append("\n");
+        
         // Ensure UI updates are on the main thread
         mHandler.post(() -> {
-            // Replace literal \n with actual newlines for display
-            mLogsText.setText(mLogsBuilder.toString().replace("\\n", "\n"));
+            // Display with HTML formatting
+            mLogsText.append(android.text.Html.fromHtml(formattedLine + "<br>", android.text.Html.FROM_HTML_MODE_LEGACY));
             mLogsBottomSheet.post(() -> mLogsBottomSheet.fullScroll(View.FOCUS_DOWN));
         });
     }
-
+    
     @Override
     public void onResume() {
         super.onResume();

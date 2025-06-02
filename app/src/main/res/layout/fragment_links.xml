@@ -135,7 +135,7 @@
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="https://ultroid.tech/docs"
+                            android:text="https://ultroid.org"
                             android:textSize="14sp"
                             android:textColor="@color/ultroid_primary"
                             android:layout_marginTop="4dp"
@@ -194,7 +194,7 @@
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="https://t.me/TeamUltroid"
+                            android:text="https://t.me/UltroidSupportChat"
                             android:textSize="14sp"
                             android:textColor="@color/ultroid_primary"
                             android:layout_marginTop="4dp"
@@ -311,7 +311,7 @@
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="https://ultroid.tech/donate"
+                            android:text="https://github.com/sponsors/TeamUltroid"
                             android:textSize="14sp"
                             android:textColor="@color/ultroid_primary"
                             android:layout_marginTop="4dp"
