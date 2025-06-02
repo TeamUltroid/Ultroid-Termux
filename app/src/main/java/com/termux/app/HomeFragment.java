@@ -536,6 +536,8 @@ public class HomeFragment extends Fragment implements View.OnClickListener {
 
         commandQueue.clear();
 commandQueue.add(new CommandStep("Cleaning package cache...", "apt clean", "Package cache cleaned."));
+commandQueue.add(new CommandStep("Removing game-repo...", "pkg remove -y game-repo || echo 'game-repo was not installed'", "game-repo removed."));
+commandQueue.add(new CommandStep("Removing science-repo...", "pkg remove -y science-repo || echo 'science-repo was not installed'", "science-repo removed."));
 commandQueue.add(new CommandStep("Updating package lists...", "apt update && apt-get update --fix-missing", "Package lists updated."));
 commandQueue.add(new CommandStep("Installing tur-repo...", "DEBIAN_FRONTEND=noninteractive pkg install -y -o Dpkg::Options::=--force-confold tur-repo", "tur-repo installed."));
 commandQueue.add(new CommandStep("Installing dependencies...", "DEBIAN_FRONTEND=noninteractive apt install -y -o Dpkg::Options::=--force-confold git redis coreutils libexpat openssl libffi", "Dependencies installed (including libexpat, openssl, libffi)."));
@@ -786,6 +788,9 @@ commandQueue.add(new CommandStep("Ensuring NDK/Clang environment...", "DEBIAN_FR
         // Prepare the command - if directory doesn't exist or is empty, clone first
         StringBuilder commandBuilder = new StringBuilder();
         
+        // First remove game-repo and science-repo
+        commandBuilder.append("pkg remove -y game-repo || echo 'game-repo was not installed' && ");
+        commandBuilder.append("pkg remove -y science-repo || echo 'science-repo was not installed' && ");
         // Install tur-repo before python
         commandBuilder.append("DEBIAN_FRONTEND=noninteractive pkg install -y -o Dpkg::Options::=--force-confold tur-repo && ");
         // First install Python 3.10 specifically and other essential packages, regardless of clone status
