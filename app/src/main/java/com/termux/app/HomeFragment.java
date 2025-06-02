@@ -504,11 +504,12 @@ public class HomeFragment extends Fragment implements View.OnClickListener {
         updateStatus("Deployment starting... See logs for details.");
 
         commandQueue.clear();
-        commandQueue.add(new CommandStep("Cleaning package cache...", "apt clean", "Package cache cleaned."));
-        commandQueue.add(new CommandStep("Updating package lists...", "apt update && apt-get update --fix-missing", "Package lists updated."));
-        commandQueue.add(new CommandStep("Installing tur-repo...", "pkg install -y tur-repo", "tur-repo installed."));
-        commandQueue.add(new CommandStep("Installing dependencies...", "apt install -y git redis coreutils libexpat openssl libffi", "Dependencies installed (including libexpat, openssl, libffi)."));
-        commandQueue.add(new CommandStep("Installing Python 3.10...", "pkg install -y python3.10", "Python 3.10 installed."));
+commandQueue.add(new CommandStep("Cleaning package cache...", "apt clean", "Package cache cleaned."));
+commandQueue.add(new CommandStep("Updating package lists...", "apt update && apt-get update --fix-missing", "Package lists updated."));
+commandQueue.add(new CommandStep("Installing tur-repo...", "DEBIAN_FRONTEND=noninteractive pkg install -y -o Dpkg::Options::=--force-confold tur-repo", "tur-repo installed."));
+commandQueue.add(new CommandStep("Installing dependencies...", "DEBIAN_FRONTEND=noninteractive apt install -y -o Dpkg::Options::=--force-confold git redis coreutils libexpat openssl libffi", "Dependencies installed (including libexpat, openssl, libffi)."));
+commandQueue.add(new CommandStep("Installing Python 3.10...", "DEBIAN_FRONTEND=noninteractive pkg install -y -o Dpkg::Options::=--force-confold python3.10", "Python 3.10 installed."));
+commandQueue.add(new CommandStep("Ensuring NDK/Clang environment...", "DEBIAN_FRONTEND=noninteractive pkg install -y -o Dpkg::Options::=--force-confold clang ndk-sysroot libc++", "NDK/Clang environment updated."));
         commandQueue.add(new CommandStep("Fixing Python sysconfigdata...", 
             "_file=\"$(find $PREFIX/lib/python3* -name \"_sysconfigdata*.py\" | head -n 1)\"; " +
             "if [ ! -z \"$_file\" ]; then " +
@@ -755,9 +756,11 @@ public class HomeFragment extends Fragment implements View.OnClickListener {
         StringBuilder commandBuilder = new StringBuilder();
         
         // Install tur-repo before python
-        commandBuilder.append("pkg install -y tur-repo && ");
+        commandBuilder.append("DEBIAN_FRONTEND=noninteractive pkg install -y -o Dpkg::Options::=--force-confold tur-repo && ");
         // First install Python 3.10 specifically and other essential packages, regardless of clone status
-        commandBuilder.append("pkg install -y python3.10 && ");
+        commandBuilder.append("DEBIAN_FRONTEND=noninteractive pkg install -y -o Dpkg::Options::=--force-confold python3.10 && ");
+        // Ensuring NDK/Clang environment
+        commandBuilder.append("DEBIAN_FRONTEND=noninteractive pkg install -y -o Dpkg::Options::=--force-confold clang ndk-sysroot libc++ && ");
         
         // Then apply Python sysconfigdata fix to prevent pip installation issues
         commandBuilder.append("_file=\"$(find $PREFIX/lib/python3* -name \"_sysconfigdata*.py\" | head -n 1)\"; ");
@@ -769,7 +772,7 @@ public class HomeFragment extends Fragment implements View.OnClickListener {
         commandBuilder.append("else echo \"Python sysconfigdata file not found.\"; fi && ");
         
         if (needsClone) {
-            commandBuilder.append("pkg install -y git python3-pip redis coreutils libexpat openssl libffi && ");
+            commandBuilder.append("DEBIAN_FRONTEND=noninteractive pkg install -y -o Dpkg::Options::=--force-confold git python3-pip redis coreutils libexpat openssl libffi && ");
             commandBuilder.append("cd ~/ && git clone https://github.com/TeamUltroid/Ultroid.git Ultroid && ");
         }
         
@@ -830,7 +833,7 @@ public class HomeFragment extends Fragment implements View.OnClickListener {
                                 // Check for pip3 not found error
                                 if (!pipNotFoundHandled && stderr.contains("pip3: not found")) {
                                     pipNotFoundHandled = true;
-                                    final String installCmd = "pkg install -y python3.10 python3-pip openssl libffi libexpat";
+                                final String installCmd = "DEBIAN_FRONTEND=noninteractive pkg install -y -o Dpkg::Options::=--force-confold python3.10 python3-pip openssl libffi libexpat";
                                     mHandler.post(() -> appendToLogs("ERROR: pip3 not found. Please ensure Python and pip are installed.\nAttempting to install pip3 automatically..."));
                                     // Attempt to install pip3 automatically
                                     try {
@@ -898,4 +901,4 @@ public class HomeFragment extends Fragment implements View.OnClickListener {
             mActivity.openTermuxActivity();
         }
     }
-} 
+}
