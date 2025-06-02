@@ -41,6 +41,15 @@ android {
     testOptions {
         unitTests.returnDefaultValues = true
     }
+
+    lintOptions {
+        // Do not abort on errors, since this library is used by Termux app
+        // and we do not want to block releases due to lint errors.
+        abortOnError false
+        // Disable lint checks for release builds.
+        // This is needed since some of the checks are not applicable to libraries.
+        checkReleaseBuilds false
+    }
 }
 
 tasks.withType(Test) {
