@@ -1,4 +1,4 @@
-name: Build and Sign
+name: Build, Sign and Publish
 
 on:
   push:
@@ -163,8 +163,8 @@ jobs:
             ${{ env.APK_DIR_PATH }}/${{ env.APK_BASENAME_PREFIX }}_sha256sums
             ${{ env.APK_DIR_PATH }}/output-metadata.json
             
-      - name: Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Publish GitHub Release
+        if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/heads/github-releases/') || startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
           files: |
@@ -176,4 +176,4 @@ jobs:
             ${{ env.APK_DIR_PATH }}/${{ env.APK_BASENAME_PREFIX }}_sha256sums
           name: Release ${{ env.APK_VERSION_TAG }}
           draft: false
-          prerelease: false
+          prerelease: ${{ !startsWith(github.ref, 'refs/tags/') }}
