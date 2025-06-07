@@ -1,6 +1,7 @@
 name: Attach Debug APKs To Release
 
 on:
+  workflow_dispatch:
   release:
     types:
       - published
@@ -20,6 +21,13 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ env.GITHUB_REF }}
+
+      - name: Mark release as prerelease
+        run: |
+          RELEASE_VERSION_NAME="${GITHUB_REF/refs\/tags\//}"
+          gh release edit "$RELEASE_VERSION_NAME" --prerelease
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and attach APKs to release
         shell: bash {0}
