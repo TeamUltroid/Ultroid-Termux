@@ -1,4 +1,4 @@
-name: Build
+name: Build and Sign
 
 on:
   push:
@@ -21,6 +21,23 @@ jobs:
     steps:
       - name: Clone repository
         uses: actions/checkout@v4
+      
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v2
+          
+      - name: Set up signing config
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > keystore.jks
+          echo "storeFile=keystore.jks" > keystore.properties
+          echo "storePassword=${{ secrets.KEYSTORE_PASSWORD }}" >> keystore.properties
+          echo "keyAlias=${{ secrets.KEY_ALIAS }}" >> keystore.properties
+          echo "keyPassword=${{ secrets.KEY_PASSWORD }}" >> keystore.properties
 
       - name: Build APKs
         shell: bash {0}
@@ -43,21 +60,40 @@ jobs:
            exit_on_error "The versionName '${RELEASE_VERSION_NAME/v/}' is not a valid version as per semantic version '2.0.0' spec in the format 'major.minor.patch(-prerelease)(+buildmetadata)'. https://semver.org/spec/v2.0.0.html."
           fi
 
-          APK_DIR_PATH="./app/build/outputs/apk/debug"
-          APK_VERSION_TAG="$RELEASE_VERSION_NAME-${{ env.PACKAGE_VARIANT }}-github-debug" # Note the "-", GITHUB_SHA will already have "+" before it
+          # Determine if this is a release build
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            # For tagged commits, build release APKs
+            BUILD_TYPE="release"
+            APK_DIR_PATH="./app/build/outputs/apk/release"
+            APK_VERSION_TAG="$RELEASE_VERSION_NAME-${{ env.PACKAGE_VARIANT }}-github-release"
+          else
+            # For regular commits, build debug APKs
+            BUILD_TYPE="debug"
+            APK_DIR_PATH="./app/build/outputs/apk/debug"
+            APK_VERSION_TAG="$RELEASE_VERSION_NAME-${{ env.PACKAGE_VARIANT }}-github-debug"
+          fi
+          
           APK_BASENAME_PREFIX="termux-app_$APK_VERSION_TAG"
 
           # Used by attachment steps later
           echo "APK_DIR_PATH=$APK_DIR_PATH" >> $GITHUB_ENV
           echo "APK_VERSION_TAG=$APK_VERSION_TAG" >> $GITHUB_ENV
           echo "APK_BASENAME_PREFIX=$APK_BASENAME_PREFIX" >> $GITHUB_ENV
+          echo "BUILD_TYPE=$BUILD_TYPE" >> $GITHUB_ENV
 
-          echo "Building APKs for 'APK_VERSION_TAG' build"
+          echo "Building APKs for '$APK_VERSION_TAG' build"
           export TERMUX_APP_VERSION_NAME="${RELEASE_VERSION_NAME/v/}" # Used by app/build.gradle
           export TERMUX_APK_VERSION_TAG="$APK_VERSION_TAG" # Used by app/build.gradle
           export TERMUX_PACKAGE_VARIANT="${{ env.PACKAGE_VARIANT }}" # Used by app/build.gradle
-          if ! ./gradlew assembleDebug; then
-            exit_on_error "Build failed for '$APK_VERSION_TAG' build."
+          
+          if [ "$BUILD_TYPE" == "release" ]; then
+            if ! ./gradlew assembleRelease; then
+              exit_on_error "Build failed for '$APK_VERSION_TAG' build."
+            fi
+          else
+            if ! ./gradlew assembleDebug; then
+              exit_on_error "Build failed for '$APK_VERSION_TAG' build."
+            fi
           fi
 
           echo "Validating APKs"
@@ -126,3 +162,18 @@ jobs:
           path: |
             ${{ env.APK_DIR_PATH }}/${{ env.APK_BASENAME_PREFIX }}_sha256sums
             ${{ env.APK_DIR_PATH }}/output-metadata.json
+            
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            ${{ env.APK_DIR_PATH }}/${{ env.APK_BASENAME_PREFIX }}_universal.apk
+            ${{ env.APK_DIR_PATH }}/${{ env.APK_BASENAME_PREFIX }}_arm64-v8a.apk
+            ${{ env.APK_DIR_PATH }}/${{ env.APK_BASENAME_PREFIX }}_armeabi-v7a.apk
+            ${{ env.APK_DIR_PATH }}/${{ env.APK_BASENAME_PREFIX }}_x86_64.apk
+            ${{ env.APK_DIR_PATH }}/${{ env.APK_BASENAME_PREFIX }}_x86.apk
+            ${{ env.APK_DIR_PATH }}/${{ env.APK_BASENAME_PREFIX }}_sha256sums
+          name: Release ${{ env.APK_VERSION_TAG }}
+          draft: false
+          prerelease: false
