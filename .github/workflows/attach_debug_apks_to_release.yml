@@ -21,6 +21,12 @@ jobs:
         with:
           ref: ${{ env.GITHUB_REF }}
 
+      - name: 'Get Previous tag'
+        id: previous_tag
+        uses: "WyriHaximus/github-action-get-previous-tag@v1"
+        with:
+          fallback: 1.0.0
+
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
