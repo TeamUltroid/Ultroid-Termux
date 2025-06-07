@@ -30,6 +30,7 @@ jobs:
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{steps.previous_tag.outputs.tag}}
           prerelease: True
 
       - name: Build and attach APKs to release
