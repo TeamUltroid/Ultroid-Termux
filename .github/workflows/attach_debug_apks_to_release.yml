@@ -21,12 +21,10 @@ jobs:
         with:
           ref: ${{ env.GITHUB_REF }}
 
-      - name: Create Release
+      - name: Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          prerelease: True
 
       - name: Build and attach APKs to release
         shell: bash {0}
