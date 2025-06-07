@@ -21,10 +21,10 @@ jobs:
         with:
           ref: ${{ env.GITHUB_REF }}
 
-      - name: Mark release as prerelease
-        run: |
-          TAG_NAME="${GITHUB_REF#refs/tags/}"
-          gh release create "$TAG_NAME" --title "$TAG_NAME" --notes "Automated release for $TAG_NAME" --prerelease
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
