@@ -32,6 +32,7 @@ jobs:
         with:
           tag_name: ${{steps.previous_tag.outputs.tag}}
           prerelease: True
+          target_commitish: ${{ github.sha }}
 
       - name: Build and attach APKs to release
         shell: bash {0}
