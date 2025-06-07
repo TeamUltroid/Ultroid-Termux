@@ -23,7 +23,7 @@ jobs:
 
       - name: Mark release as prerelease
         run: |
-          TAG_NAME="${GITHUB_REF/refs\/tags\//}"
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
           gh release create "$TAG_NAME" --title "$TAG_NAME" --notes "Automated release for $TAG_NAME" --prerelease
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
